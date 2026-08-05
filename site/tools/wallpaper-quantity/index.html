@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>壁紙・クロスの必要量計算 — 巾数とメーター数を自動で算出</title>
+<meta name="description" content="部屋の壁の幅と高さを入れるだけで、壁紙クロスの必要巾数・必要メーター数・予備込みの発注量を自動計算します。柄合わせ（縦リピート）にも対応。メーカーの採寸ガイドに沿った計算です。">
+<style>
+  :root{
+    --bg:#fbfbfa; --fg:#1c1b19; --muted:#6b6862;
+    --line:#e5e2dc; --card:#fff; --accent:#0f6cbd; --accent-soft:#eef5fc;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#17181a; --fg:#e9e8e5; --muted:#a3a09a;
+           --line:#2e3033; --card:#1f2123; --accent:#6cb6f5; --accent-soft:#1b2733; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+    line-height:1.75;-webkit-text-size-adjust:100%}
+  .wrap{max-width:760px;margin:0 auto;padding:0 16px}
+  header{border-bottom:1px solid var(--line);padding:16px 0}
+  .site{font-size:.85rem;color:var(--muted);text-decoration:none}
+  h1{font-size:1.35rem;margin:28px 0 6px;line-height:1.5}
+  .sub{color:var(--muted);font-size:.92rem;margin:0 0 28px}
+  h2{font-size:1.05rem;margin:36px 0 12px;padding-top:14px;border-top:1px solid var(--line)}
+  h3{font-size:.95rem;margin:22px 0 6px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .walls{display:flex;flex-direction:column;gap:10px}
+  .wallrow{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
+  label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:3px}
+  input,select{width:100%;padding:9px 10px;font-size:1rem;color:var(--fg);
+    background:var(--bg);border:1px solid var(--line);border-radius:8px}
+  input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);
+    background:var(--card);color:var(--fg);padding:9px 14px}
+  .del{padding:9px 11px;color:var(--muted)}
+  .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:16px}
+  .result{margin-top:20px;border:1px solid var(--accent);background:var(--accent-soft);
+    border-radius:12px;padding:18px}
+  .big{font-size:2rem;font-weight:700;color:var(--accent);line-height:1.2;margin:2px 0 0}
+  .big small{font-size:1rem;font-weight:600;margin-left:2px}
+  .sub2{font-size:.85rem;color:var(--muted);margin:8px 0 0}
+  .tablewrap{overflow-x:auto;margin-top:14px}
+  table{border-collapse:collapse;width:100%;font-size:.86rem;white-space:nowrap}
+  th,td{border-bottom:1px solid var(--line);padding:7px 10px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--muted);font-weight:600}
+  .note{border-left:3px solid var(--accent);background:var(--accent-soft);
+    padding:14px 16px;border-radius:0 8px 8px 0;font-size:.88rem;margin:24px 0}
+  p,li{font-size:.94rem}
+  ul{padding-left:1.2em}
+  .src{font-size:.85rem;color:var(--muted)}
+  .src li{font-size:.85rem}
+  footer{border-top:1px solid var(--line);margin-top:40px;padding:20px 0 40px;
+    color:var(--muted);font-size:.85rem}
+  footer a{color:var(--muted);margin-right:14px}
+  a{color:var(--accent)}
+  @media (max-width:400px){
+    .wallrow{grid-template-columns:1fr 1fr auto;gap:6px}
+    .big{font-size:1.7rem}
+  }
+</style>
+</head>
+<body>
+
+<header><div class="wrap"><a class="site" href="/">← くらしの計算室</a></div></header>
+
+<main class="wrap">
+
+<h1>壁紙・クロスの必要量計算</h1>
+<p class="sub">壁の幅と高さを入れるだけ。必要な巾（はば）数とメーター数、予備を含めた発注量まで出します。</p>
+
+<div class="card">
+  <div class="walls" id="walls"></div>
+
+  <div class="actions">
+    <button type="button" id="add">＋ 壁面を追加</button>
+    <button type="button" data-preset="6">6畳の4面を入力</button>
+    <button type="button" data-preset="8">8畳の4面を入力</button>
+  </div>
+
+  <div class="opts">
+    <div>
+      <label for="rollw">壁紙の幅</label>
+      <select id="rollw">
+        <option value="90" selected>90cm（国産の標準）</option>
+        <option value="53">53cm（輸入壁紙）</option>
+        <option value="100">100cm</option>
+      </select>
+    </div>
+    <div>
+      <label for="repeat">柄の縦リピート</label>
+      <select id="repeat">
+        <option value="0" selected>柄合わせなし（無地）</option>
+        <option value="32">32cm</option>
+        <option value="45">45cm</option>
+        <option value="64">64cm</option>
+      </select>
+    </div>
+    <div>
+      <label for="spare">予備</label>
+      <select id="spare">
+        <option value="10" selected>10%（推奨）</option>
+        <option value="0">なし</option>
+        <option value="20">20%（初めての施工）</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="result" aria-live="polite">
+  <div>予備を含めた推奨発注量</div>
+  <p class="big" id="recommended">— <small>m</small></p>
+  <p class="sub2" id="summary">壁面のサイズを入力してください。</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>壁面</th><th>幅</th><th>高さ</th><th>巾数</th><th>1巾の長さ</th><th>小計</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="note">
+  <strong>この計算は概算です。</strong>
+  部屋の形状、柄の向き、下地の状態、施工方法によって必要量は変わります。
+  実際の発注数量は、購入先の販売単位や施工店・専門家にご確認ください。
+  計算結果にもとづく発注について責任を負いかねます。
+</div>
+
+<h2>計算のしかた</h2>
+
+<h3>1. 壁1面ごとに「巾数」を数える</h3>
+<p>
+  壁紙はロール状で、幅が決まっています。国産の量産品は実寸で92cm前後ですが、
+  メーカーや専門店の採寸ガイドでは<strong>余裕をみて90cmで計算する</strong>のが通例です。
+  壁の横幅を壁紙の幅で割り、<strong>端数は必ず切り上げます</strong>。
+  切り捨てると材料が足りなくなります。
+</p>
+<ul>
+  <li>横幅360cm ÷ 90cm ＝ 4.0 → <strong>4巾</strong></li>
+  <li>横幅270cm ÷ 90cm ＝ 3.0 → <strong>3巾</strong></li>
+  <li>横幅181cm ÷ 90cm ＝ 2.01 → 切り上げて <strong>3巾</strong></li>
+</ul>
+
+<h3>2. 1巾あたりの長さに切りしろを足す</h3>
+<p>
+  貼るときに上下を裁ち落とすため、壁の高さに<strong>10cm</strong>ほど足します。
+  天井高250cmなら1巾あたり260cmです。
+</p>
+
+<h3>3. 柄物は「縦リピート」で決まる</h3>
+<p>
+  柄の入った壁紙は、隣り合う巾で柄を合わせる必要があります。
+  このとき必要な長さは切りしろではなく<strong>柄の繰り返し単位（縦リピート）</strong>で決まります。
+  天井高をリピートで割って切り上げ、さらに柄合わせの余裕として<strong>1リピート分を足します</strong>。
+</p>
+<ul>
+  <li>天井240cm・縦リピート64cm → 240÷64＝3.75 → 切り上げて4 → 余裕1つ分を足して5 → <strong>5×64＝320cm</strong></li>
+</ul>
+
+<h3>4. 窓やドアは差し引かない</h3>
+<p>
+  意外に思われますが、<strong>開口部の面積は引きません</strong>。
+  窓の上下にできる部分は幅の狭い切れ端になり、他の面へ回せないことが多いためです。
+  差し引いて発注すると材料が足りなくなります。
+  大きな掃き出し窓など、明らかに1巾まるごと不要な箇所がある場合だけ、
+  その壁面の幅を分けて入力してください。
+</p>
+
+<h2>よくある質問</h2>
+
+<h3>6畳の部屋だと何メートル必要ですか</h3>
+<p>
+  一般的な6畳間（約360cm×270cm）の壁4面を天井高250cmで計算すると、
+  14巾・36.4mになります。予備10%を含めると<strong>約40m</strong>が目安です。
+  上のボタンから同じ条件を入力できます。
+</p>
+
+<h3>天井も貼る場合は</h3>
+<p>
+  天井は「幅＝部屋の短辺」「高さ＝部屋の長辺」として1つの面に見立てて入力してください。
+  ただし天井は継ぎ目が目立ちやすく、切りしろも多めに要ります。
+</p>
+
+<h3>生のり付きと生のりなしで計算は変わりますか</h3>
+<p>
+  必要な長さの計算は同じです。生のり付きは1m単位の切り売りが多く、
+  生のりなしはロール単位（品番により長さが異なる）で売られることが多いので、
+  <strong>販売単位に合わせて切り上げてください</strong>。
+</p>
+
+<h2>出典</h2>
+<ul class="src">
+  <li>リリカラ「壁紙クロスの必要メーター数の計算方法を徹底解説！」
+    <a href="https://shop.lilycolor.co.jp/blogs/how-to/wallpaper-measure" rel="nofollow noopener" target="_blank">shop.lilycolor.co.jp</a>
+    — 壁紙の巾は約90cm／天井高に＋10cm／柄物は縦リピート＋1リピート分／初回は1割多め</li>
+  <li>DIYショップRESTA「壁紙クロスの必要サイズ（数量）の測り方」
+    <a href="https://www.diy-shop.jp/info/diy_sz.html" rel="nofollow noopener" target="_blank">diy-shop.jp</a>
+    — 幅は約90cmで計算／高さはそれぞれ+10cm／開口部は差し引かず分割して加算</li>
+</ul>
+<p class="src">最終確認日: 2026年8月6日</p>
+
+</main>
+
+<footer class="wrap">
+  <a href="/">トップ</a>
+  <a href="/privacy.html">プライバシーポリシー</a>
+  <a href="/contact.html">お問い合わせ</a>
+  <p>&copy; 2026 くらしの計算室</p>
+</footer>
+
+<script type="module">
+import { calculate } from "./calc.js";
+
+const PRESETS = {
+  6: [["壁A（長辺）",360,250],["壁B（短辺）",270,250],["壁C（長辺）",360,250],["壁D（短辺）",270,250]],
+  8: [["壁A（長辺）",360,250],["壁B（短辺）",360,250],["壁C（長辺）",360,250],["壁D（短辺）",360,250]],
+};
+
+const $walls = document.getElementById("walls");
+const $rows = document.getElementById("rows");
+const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
+
+function addRow(label = "", w = "", h = 250) {
+  const i = $walls.children.length + 1;
+  const div = document.createElement("div");
+  div.className = "wallrow";
+  div.innerHTML = `
+    <div><label>幅 (cm)</label><input type="number" inputmode="numeric" min="0" step="1"
+      class="w" placeholder="360" value="${w}" aria-label="${label || "壁面" + i}の幅(cm)"></div>
+    <div><label>高さ (cm)</label><input type="number" inputmode="numeric" min="0" step="1"
+      class="h" value="${h}" aria-label="${label || "壁面" + i}の高さ(cm)"></div>
+    <button type="button" class="del" aria-label="この壁面を削除">✕</button>`;
+  div.dataset.label = label || `壁面${i}`;
+  $walls.appendChild(div);
+}
+
+function render() {
+  const walls = [...$walls.children].map((el) => ({
+    label: el.dataset.label,
+    widthCm: num(el.querySelector(".w").value),
+    heightCm: num(el.querySelector(".h").value),
+  }));
+
+  const r = calculate(walls, {
+    rollWidthCm: num(document.getElementById("rollw").value),
+    repeatCm: num(document.getElementById("repeat").value),
+    sparePercent: num(document.getElementById("spare").value),
+  });
+
+  const $rec = document.getElementById("recommended");
+  const $sum = document.getElementById("summary");
+
+  if (r.rows.length === 0) {
+    $rec.innerHTML = `— <small>m</small>`;
+    $sum.textContent = "壁面のサイズを入力してください。";
+    $rows.innerHTML = "";
+    return;
+  }
+
+  $rec.innerHTML = `${r.recommendedMeters}<small> m</small>`;
+  $sum.textContent =
+    `計算上は ${r.totalMeters.toFixed(1)}m（${r.totalStrips}巾）。` +
+    `切り上げで ${r.orderMeters}m、予備${r.options.sparePercent}%を含めて ${r.recommendedMeters}m。`;
+
+  $rows.innerHTML = r.rows.map((x) => `<tr>
+      <td>${x.label}</td><td>${x.widthCm}cm</td><td>${x.heightCm}cm</td>
+      <td>${x.strips}巾</td><td>${x.perStripCm}cm</td><td>${(x.totalCm / 100).toFixed(1)}m</td>
+    </tr>`).join("");
+}
+
+document.getElementById("add").addEventListener("click", () => { addRow(); render(); });
+
+$walls.addEventListener("input", render);
+$walls.addEventListener("click", (e) => {
+  if (!e.target.classList.contains("del")) return;
+  e.target.closest(".wallrow").remove();
+  render();
+});
+
+for (const b of document.querySelectorAll("[data-preset]")) {
+  b.addEventListener("click", () => {
+    $walls.innerHTML = "";
+    for (const [label, w, h] of PRESETS[b.dataset.preset]) addRow(label, w, h);
+    render();
+  });
+}
+
+for (const id of ["rollw", "repeat", "spare"]) {
+  document.getElementById(id).addEventListener("change", render);
+}
+
+for (const [label, w, h] of PRESETS[6]) addRow(label, w, h);
+render();
+</script>
+
+</body>
+</html>

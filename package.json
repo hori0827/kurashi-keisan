@@ -1,0 +1,9 @@
+{
+  "name": "kurashi-keisan",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "verify": "node scripts/verify.mjs",
+    "sitemap": "node scripts/gen_sitemap.mjs"
+  }
+}

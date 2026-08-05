@@ -72,7 +72,40 @@
     }
   ],
 
-  "tools": [],
+  "tools": [
+    {
+      "id": "T002",
+      "slug": "wallpaper-quantity",
+      "title": "壁紙・クロスの必要量計算",
+      "path": "site/tools/wallpaper-quantity/",
+      "score": 28,
+      "score_scale": "35点満点（7項目）",
+      "built_on": "2026-08-06",
+      "published_on": null,
+      "publish_blocked_by": "STEP1（git remote 未設定）",
+      "gate_passed": { "verify": true, "assertions": 22, "warnings": 0, "on": "2026-08-06" },
+      "visual_check_375px": "未実施（puppeteer未導入。理由は decisions.md 2026-08-06 参照）",
+      "basis": [
+        {
+          "topic": "壁紙の幅・切りしろ・柄合わせ",
+          "source": "リリカラ 壁紙クロスの必要メーター数の計算方法",
+          "url": "https://shop.lilycolor.co.jp/blogs/how-to/wallpaper-measure",
+          "confirmed_on": "2026-08-06"
+        },
+        {
+          "topic": "壁紙の幅・切りしろ・開口部の扱い",
+          "source": "DIYショップRESTA 壁紙クロスの必要サイズの測り方",
+          "url": "https://www.diy-shop.jp/info/diy_sz.html",
+          "confirmed_on": "2026-08-06"
+        }
+      ],
+      "monetization": {
+        "status": "none",
+        "plan": "壁紙EC（RESTA等）の物販アフィリ。単価は低い。L2到達後に検討",
+        "score_note": "収益導線は2/5。第1号は収益ではなく『順位が取れるか』の検証が目的"
+      }
+    }
+  ],
 
   "backlog": [
     {

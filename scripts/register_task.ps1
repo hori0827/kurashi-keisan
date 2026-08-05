@@ -1,4 +1,4 @@
-# タスクスケジューラ登録スクリプト
+﻿# タスクスケジューラ登録スクリプト
 #
 # 使い方（PowerShellでこの1行だけ）:
 #   powershell -ExecutionPolicy Bypass -File "c:\Users\horik_vle3kvw\OneDrive\Desktop\プロジェクト\scripts\register_task.ps1"

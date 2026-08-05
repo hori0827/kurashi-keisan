@@ -208,3 +208,11 @@ GitHub にpushすると Cloudflare Pages が自動でデプロイする。
 - 実体パス: `C:\Users\horik_vle3kvw\OneDrive\Desktop\プロジェクト`（OneDrive配下）
 - Python が要る場合は `py -3` を使う（Windowsストアのスタブは動かない）
 - シェルは PowerShell。`&&` は使えない（`;` と `if ($?)` を使う）
+- **`.ps1` は必ず UTF-8 BOM付きで保存する。** Windows PowerShell 5.1 は BOM の無い
+  `.ps1` を ANSI(CP932) として読むため、日本語コメントのバイト列が壊れて
+  **構文エラーで起動すらしない**。2026-08-06 にこれでランナー3本が全滅していた。
+  スクリプトを書いたら `[System.Management.Automation.Language.Parser]::ParseFile()` で
+  構文を確認するか、実際に実行して確かめること。**書いて終わりにしない。**
+- **node_modules を作らない。** 本プロジェクトは OneDrive 配下にあり、
+  数万ファイルの同期が git のファイルロックを誘発する。
+  依存ゼロで書けないものは、OneDrive 外へ移すまで導入を見送る
