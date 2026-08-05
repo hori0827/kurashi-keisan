@@ -6,6 +6,9 @@ SETUP_HUMAN.md
 *token*
 secrets/
 
+# 実行ログ
+logs/
+
 # OS / エディタ
 Thumbs.db
 desktop.ini
