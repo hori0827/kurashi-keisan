@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>くらしの計算室 — 制度がややこしい計算を、正確に</title>
+<meta name="description" content="年収の壁、社会保険、税金。制度改定が多くて分かりにくい計算を、一次情報にもとづいて正確に計算できる無料ツール集です。">
+<style>
+  :root{
+    --bg:#fbfbfa; --fg:#1c1b19; --muted:#6b6862;
+    --line:#e5e2dc; --card:#fff; --accent:#0f6cbd; --accent-soft:#eef5fc;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#17181a; --fg:#e9e8e5; --muted:#a3a09a;
+           --line:#2e3033; --card:#1f2123; --accent:#6cb6f5; --accent-soft:#1b2733; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+    line-height:1.75;-webkit-text-size-adjust:100%}
+  .wrap{max-width:760px;margin:0 auto;padding:0 20px}
+  header{border-bottom:1px solid var(--line);padding:28px 0}
+  .logo{font-size:1.2rem;font-weight:700;letter-spacing:.02em;margin:0}
+  .logo span{color:var(--accent)}
+  .tag{color:var(--muted);font-size:.9rem;margin:4px 0 0}
+  main{padding:40px 0 64px}
+  h2{font-size:1.05rem;margin:0 0 16px;letter-spacing:.02em}
+  .lead{font-size:1.05rem;margin:0 0 36px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:20px;margin-bottom:14px}
+  .card h3{margin:0 0 6px;font-size:1rem}
+  .card p{margin:0;color:var(--muted);font-size:.92rem}
+  .soon{display:inline-block;font-size:.72rem;letter-spacing:.06em;
+    background:var(--accent-soft);color:var(--accent);border-radius:99px;
+    padding:3px 10px;margin-bottom:8px;font-weight:600}
+  .note{border-left:3px solid var(--accent);background:var(--accent-soft);
+    padding:14px 16px;border-radius:0 8px 8px 0;font-size:.9rem;margin:32px 0 0}
+  footer{border-top:1px solid var(--line);padding:24px 0 40px;
+    color:var(--muted);font-size:.85rem}
+  footer a{color:var(--muted);margin-right:16px}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <p class="logo">くらしの<span>計算室</span></p>
+    <p class="tag">制度がややこしい計算を、正確に。</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <p class="lead">
+    年収の壁、社会保険、税金。制度は毎年のように変わるのに、
+    ネット上の情報は古いままだったり、提案段階の数字が確定事項のように
+    書かれていたりします。ここでは<strong>官公庁の一次情報で裏を取った計算</strong>だけを、
+    無料のツールとして公開します。
+  </p>
+
+  <h2>公開中のツール</h2>
+
+  <div class="card">
+    <span class="soon">準備中</span>
+    <h3>年収の壁シミュレーター（2026年度対応）</h3>
+    <p>
+      106万・130万・136万・159万の各ラインを同時に判定し、
+      「年内あと何時間働けるか」を時給から逆算します。
+      2026年10月の106万円の壁撤廃に対応予定。
+    </p>
+  </div>
+
+  <div class="note">
+    <strong>公開の方針について。</strong>
+    このサイトのツールは、根拠となる法令・年度・出典を各ページに明記します。
+    確認が取れていない数値は、確認が取れるまで公開しません。
+    税額や保険料の判定は概算であり、最終的な判断は税務署・年金事務所・
+    お勤め先および専門家にご確認ください。
+  </div>
+
+</main>
+
+<footer class="wrap">
+  <a href="/privacy.html">プライバシーポリシー</a>
+  <a href="/contact.html">お問い合わせ</a>
+  <p>&copy; 2026 くらしの計算室</p>
+</footer>
+
+</body>
+</html>

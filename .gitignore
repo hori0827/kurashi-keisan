@@ -1,0 +1,17 @@
+# 認証情報は絶対にコミットしない
+SETUP_HUMAN.md
+.env
+.env.*
+*credentials*
+*token*
+secrets/
+
+# OS / エディタ
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+
+# Python
+__pycache__/
+*.pyc

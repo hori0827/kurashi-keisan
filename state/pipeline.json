@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "created": "2026-08-05",
+    "last_run": "2026-08-05",
+    "goal_jpy_monthly": 100000,
+    "model": "niche-web-tool-portfolio"
+  },
+
+  "phase": "bootstrap",
+  "phase_definition": {
+    "bootstrap": "公開経路が未接続。サイトの器とツールを作り、接続を待つ",
+    "launch": "公開済み。ツールを3本まで増やし流入を待つ",
+    "monetize": "流入あり。収益導線を敷く",
+    "scale": "収益あり。勝ち筋の周辺を取る"
+  },
+
+  "blocked_on_human": [
+    {
+      "id": "STEP1",
+      "what": "GitHubリポジトリ作成・トークン発行・Cloudflare Pages接続",
+      "why_blocking": "これが無いとサイトを世界に公開できない",
+      "blocks": "公開のみ。制作は並行して進められる",
+      "status": "pending"
+    }
+  ],
+
+  "tools": [],
+
+  "backlog": [
+    {
+      "id": "T001",
+      "title": "年収の壁シミュレーター（2026年度対応）",
+      "score": 23,
+      "status": "blocked_on_facts",
+      "blocker": "令和8年分の所得税の壁（178万円説）に8万円の不整合。research/niches.md 参照",
+      "next_action": "財務省・参議院調査室の一次資料で条文レベルの確認を行う",
+      "partial_ok": "社会保険側（106万撤廃・130万・週20時間）は確定済みで実装可"
+    }
+  ],
+
+  "metrics_history": [],
+
+  "facts_to_recheck": [
+    {
+      "topic": "所得税の年収の壁",
+      "basis_year": "令和8年分",
+      "confirmed": false,
+      "recheck_by": "2026-12-01",
+      "note": "年末調整シーズン前に必ず最終確認する"
+    },
+    {
+      "topic": "106万円の壁の撤廃",
+      "basis_year": "2026年10月施行",
+      "confirmed": true,
+      "recheck_by": "2026-10-01",
+      "note": "施行日にツールの表記を現在形へ切り替える"
+    }
+  ],
+
+  "decision_log_ref": "state/decisions.md"
+}
