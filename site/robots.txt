@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# 公開URLが確定したら scripts/gen_sitemap.mjs が下行を書き換える
+# Sitemap: https://example.pages.dev/sitemap.xml

@@ -37,7 +37,13 @@ $Prompt = @'
 成果を良く見せる記述は、将来の自分の判断を誤らせるので有害である。
 '@
 
-$Allowed = 'Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,TodoWrite,Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git log:*),Bash(git diff:*),Bash(git push:*)'
+$Allowed = @(
+    'Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,TodoWrite'
+    'Bash(git add:*),Bash(git commit:*),Bash(git status:*)'
+    'Bash(git log:*),Bash(git diff:*),Bash(git push:*),Bash(git remote:*)'
+    'Bash(py -3 scripts/fetch_metrics.py:*)'
+    'Bash(node scripts/verify.mjs:*)'
+) -join ','
 
 try {
     & claude -p $Prompt --allowedTools $Allowed --permission-mode acceptEdits 2>&1 |

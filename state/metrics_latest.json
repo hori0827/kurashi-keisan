@@ -1,0 +1,7 @@
+{
+  "fetched_at": "2026-08-06",
+  "window_days": 28,
+  "status": "not_configured",
+  "sessions": null,
+  "hint": "pipeline.json の site.gsc_property が未設定。まだ公開していない可能性が高い"
+}

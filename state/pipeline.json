@@ -1,9 +1,27 @@
 {
   "meta": {
     "created": "2026-08-05",
-    "last_run": "2026-08-05",
+    "last_run": "2026-08-06",
+    "last_run_type": "構成検証（3ラウンド）。decisions.md 2026-08-06 参照",
     "goal_jpy_monthly": 100000,
     "model": "niche-web-tool-portfolio"
+  },
+
+  "north_star": {
+    "metric": "monthly_sessions",
+    "current": 0,
+    "target": 50000,
+    "rationale": "月10万円 ≒ 月4〜6万セッション。CLAUDE.md「10万円が意味する流入量」参照",
+    "current_level": "L0",
+    "kpi_ladder": {
+      "L0": { "goal": "公開＋Search Console登録", "deadline": null, "done": false },
+      "L1": { "goal": "検索表示回数 > 0", "deadline": null, "done": false },
+      "L2": { "goal": "月1,000セッション", "deadline": null, "done": false,
+              "on_miss": "増産停止。ニッチ選定の見直しへ" },
+      "L3": { "goal": "月10,000セッション／初収益", "deadline": null, "done": false },
+      "L4": { "goal": "月50,000セッション／月10万円", "deadline": null, "done": false }
+    },
+    "note": "deadline は L0 到達日（＝公開日）が決まった時点で日次ループが埋める"
   },
 
   "phase": "bootstrap",
@@ -14,12 +32,42 @@
     "scale": "収益あり。勝ち筋の周辺を取る"
   },
 
+  "site": {
+    "published_url": null,
+    "gsc_property": null,
+    "custom_domain": null
+  },
+
+  "measurement": {
+    "connected": false,
+    "method": "Google Search Console API (service account)",
+    "why": "無人ループから読める唯一の実用的な選択肢。Cloudflare Web Analytics は ダッシュボード限定で headless から取得できない",
+    "script": "scripts/fetch_metrics.py",
+    "blocked_on": "STEP1.5"
+  },
+
   "blocked_on_human": [
+    {
+      "id": "STEP0",
+      "what": "タスクスケジューラへの登録（register_task.ps1 の実行）",
+      "why_blocking": "自律ループそのものが起動しない。これが無いと他の全てが進まない",
+      "blocks": "全て",
+      "status": "pending",
+      "verified_missing_on": "2026-08-06"
+    },
     {
       "id": "STEP1",
       "what": "GitHubリポジトリ作成・トークン発行・Cloudflare Pages接続",
       "why_blocking": "これが無いとサイトを世界に公開できない",
-      "blocks": "公開のみ。制作は並行して進められる",
+      "blocks": "公開。制作は在庫3本まで並行可（CLAUDE.md 前提ゲート）",
+      "status": "pending",
+      "verified_missing_on": "2026-08-06"
+    },
+    {
+      "id": "STEP1.5",
+      "what": "Search Console 登録 + サービスアカウント作成 + キー配置",
+      "why_blocking": "計測できないと意思決定ルールの #4〜#7 が永久に判定不能になり、ループが増産だけを繰り返す",
+      "blocks": "計測・以降の全ての判断",
       "status": "pending"
     }
   ],
@@ -30,11 +78,17 @@
     {
       "id": "T001",
       "title": "年収の壁シミュレーター（2026年度対応）",
-      "score": 23,
-      "status": "blocked_on_facts",
+      "score": 22,
+      "score_scale": "35点満点（7項目）。2026-08-06 に再採点",
+      "status": "deferred",
+      "deferred_reason": "YMYL足切り。ドメイン評価ゼロでは勝てない。L3到達後に再開する。research/niches.md 参照",
+      "prev_status": "blocked_on_facts",
       "blocker": "令和8年分の所得税の壁（178万円説）に8万円の不整合。research/niches.md 参照",
       "next_action": "財務省・参議院調査室の一次資料で条文レベルの確認を行う",
-      "partial_ok": "社会保険側（106万撤廃・130万・週20時間）は確定済みで実装可"
+      "partial_ok": "社会保険側（106万撤廃・130万・週20時間）は確定済みで実装可",
+      "blocked_until": "2026-08-20",
+      "on_deadline": "所得税側を切り離し、社会保険側のみのツールとして公開する。所得税は「確認中」と明記して非表示。塩漬けにしない",
+      "ymyl_risk": "high"
     }
   ],
 

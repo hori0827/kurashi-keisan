@@ -32,7 +32,13 @@ $Prompt = @'
 '@
 
 # 権限は必要最小限のみ許可する。任意のコマンド実行は許可しない。
-$Allowed = 'Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,TodoWrite,Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git log:*),Bash(git diff:*),Bash(git push:*)'
+$Allowed = @(
+    'Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,TodoWrite'
+    'Bash(git add:*),Bash(git commit:*),Bash(git status:*)'
+    'Bash(git log:*),Bash(git diff:*),Bash(git push:*),Bash(git remote:*)'
+    'Bash(py -3 scripts/fetch_metrics.py:*)'   # 手順3の計測
+    'Bash(node scripts/verify.mjs:*)'          # 公開前ゲート
+) -join ','
 
 try {
     & claude -p $Prompt --allowedTools $Allowed --permission-mode acceptEdits 2>&1 |
