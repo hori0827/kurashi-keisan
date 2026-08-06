@@ -17,6 +17,16 @@ $Log = Join-Path $LogDir ("run_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd'))
 
 "===== $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') 開始 =====" | Add-Content $Log -Encoding utf8
 
+# ── 公開経路の自動接続 ───────────────────────────────────────────────
+# origin が未設定で、かつ secrets\github_token.txt が置かれていれば、
+# ここでリポジトリ作成から初回pushまで済ませる（公開前ゲートは向こうで通る）。
+# 人間はトークンを1回貼るだけでよく、以降の公開は完全に自動になる。
+$remotes = @(git remote)
+if (-not ($remotes -contains 'origin')) {
+    & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'connect_github.ps1') |
+        Add-Content $Log -Encoding utf8
+}
+
 $Prompt = @'
 あなたはこのプロジェクトの自律運用を担っている。まず CLAUDE.md を読むこと。
 

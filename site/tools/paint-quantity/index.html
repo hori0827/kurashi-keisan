@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ペンキ・塗料の必要量計算 — 必要リットルと缶の組み合わせを算出</title>
+<meta name="description" content="部屋の寸法と窓・ドアを入れるだけで、ペンキの必要リットル数と缶の組み合わせを算出します。カンペハピオ・アサヒペンが公表している缶ごとの標準塗り面積を収録し、何回塗り基準かの違いにも対応した無料ツールです。">
+<style>
+  :root{
+    --bg:#fbfbfa; --fg:#1c1b19; --muted:#6b6862;
+    --line:#e5e2dc; --card:#fff; --accent:#0f6cbd; --accent-soft:#eef5fc;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#17181a; --fg:#e9e8e5; --muted:#a3a09a;
+           --line:#2e3033; --card:#1f2123; --accent:#6cb6f5; --accent-soft:#1b2733; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+    line-height:1.75;-webkit-text-size-adjust:100%}
+  .wrap{max-width:760px;margin:0 auto;padding:0 16px}
+  header{border-bottom:1px solid var(--line);padding:16px 0}
+  .site{font-size:.85rem;color:var(--muted);text-decoration:none}
+  h1{font-size:1.35rem;margin:28px 0 6px;line-height:1.5}
+  .sub{color:var(--muted);font-size:.92rem;margin:0 0 28px}
+  h2{font-size:1.05rem;margin:36px 0 12px;padding-top:14px;border-top:1px solid var(--line)}
+  h3{font-size:.95rem;margin:22px 0 6px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:16px;margin-bottom:14px}
+  .card > .lead{font-size:.85rem;color:var(--muted);margin:0 0 10px}
+  .rows{display:flex;flex-direction:column;gap:10px}
+  .row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
+  .row.opening{grid-template-columns:1fr 1fr 4.2rem auto}
+  label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:3px}
+  input,select{width:100%;padding:9px 10px;font-size:1rem;color:var(--fg);
+    background:var(--bg);border:1px solid var(--line);border-radius:8px}
+  input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);
+    background:var(--card);color:var(--fg);padding:9px 14px}
+  .del{padding:9px 11px;color:var(--muted)}
+  .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .opts.tight{margin-top:12px}
+  .full{grid-column:1/-1}
+  .result{margin-top:20px;border:1px solid var(--accent);background:var(--accent-soft);
+    border-radius:12px;padding:18px}
+  .big{font-size:2rem;font-weight:700;color:var(--accent);line-height:1.2;margin:2px 0 0}
+  .big small{font-size:1rem;font-weight:600;margin-left:2px}
+  .sub2{font-size:.85rem;color:var(--muted);margin:8px 0 0}
+  .warnline{font-size:.85rem;margin:10px 0 0;padding:8px 10px;border-radius:8px;
+    background:var(--card);border:1px solid var(--line)}
+  .tablewrap{overflow-x:auto;margin-top:14px}
+  table{border-collapse:collapse;width:100%;font-size:.86rem;white-space:nowrap}
+  th,td{border-bottom:1px solid var(--line);padding:7px 10px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--muted);font-weight:600}
+  .note{border-left:3px solid var(--accent);background:var(--accent-soft);
+    padding:14px 16px;border-radius:0 8px 8px 0;font-size:.88rem;margin:24px 0}
+  p,li{font-size:.94rem}
+  ul{padding-left:1.2em}
+  .src{font-size:.85rem;color:var(--muted)}
+  .src li{font-size:.85rem}
+  .hide{display:none}
+  footer{border-top:1px solid var(--line);margin-top:40px;padding:20px 0 40px;
+    color:var(--muted);font-size:.85rem}
+  footer a{color:var(--muted);margin-right:14px}
+  a{color:var(--accent)}
+  @media (max-width:400px){
+    .row.opening{grid-template-columns:1fr 1fr 3.6rem auto;gap:6px}
+    .big{font-size:1.7rem}
+  }
+</style>
+</head>
+<body>
+
+<header><div class="wrap"><a class="site" href="/">← くらしの計算室</a></div></header>
+
+<main class="wrap">
+
+<h1>ペンキ・塗料の必要量計算</h1>
+<p class="sub">
+  塗る面を入れるだけ。必要なリットル数を範囲で出し、
+  <strong>どの缶を何個買えばいいか</strong>まで示します。
+</p>
+
+<div class="card">
+  <p class="lead">① 塗る面（壁・天井・板・扉など）</p>
+  <div class="rows" id="walls"></div>
+  <div class="actions">
+    <button type="button" id="addWall">＋ 面を追加</button>
+    <button type="button" data-preset="6">6畳の壁4面</button>
+    <button type="button" data-preset="8">8畳の壁4面</button>
+  </div>
+</div>
+
+<div class="card">
+  <p class="lead">② 塗らない部分（窓・ドアなど）— 塗料では差し引きます</p>
+  <div class="rows" id="openings"></div>
+  <div class="actions">
+    <button type="button" id="addOpening">＋ 窓・ドアを追加</button>
+    <button type="button" id="clearOpenings">なしにする</button>
+  </div>
+</div>
+
+<div class="card">
+  <p class="lead">③ 使う塗料</p>
+  <div class="opts">
+    <div class="full">
+      <label for="product">製品（缶の公表値を収録）</label>
+      <select id="product"></select>
+    </div>
+    <div>
+      <label for="coats">塗り回数</label>
+      <select id="coats">
+        <option value="1">1回塗り</option>
+        <option value="2" selected>2回塗り（推奨）</option>
+        <option value="3">3回塗り</option>
+      </select>
+    </div>
+    <div>
+      <label for="spare">予備</label>
+      <select id="spare">
+        <option value="10" selected>10%（推奨）</option>
+        <option value="0">なし</option>
+        <option value="20">20%（初めての塗装）</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="opts tight hide" id="customBox">
+    <div>
+      <label for="cArea">缶の標準塗り面積 (㎡)</label>
+      <input type="number" id="cArea" inputmode="decimal" min="0" step="0.1" placeholder="16">
+    </div>
+    <div>
+      <label for="cVol">その缶の容量 (L)</label>
+      <input type="number" id="cVol" inputmode="decimal" min="0" step="0.1" placeholder="1.6">
+    </div>
+    <div>
+      <label for="cBasis">その面積は何回塗り基準か</label>
+      <select id="cBasis">
+        <option value="1" selected>1回塗り</option>
+        <option value="2">2回塗り</option>
+      </select>
+    </div>
+    <div>
+      <label for="cSizes">売られている容量 (L・カンマ区切り)</label>
+      <input type="text" id="cSizes" value="0.7,1.6,3,7" placeholder="0.7,1.6,3,7">
+    </div>
+  </div>
+</div>
+
+<div class="result" aria-live="polite">
+  <div>予備を含めた推奨購入量</div>
+  <p class="big" id="recommended">— <small>L</small></p>
+  <p class="sub2" id="summary">塗る面のサイズを入力してください。</p>
+  <p class="warnline hide" id="warn"></p>
+
+  <div class="tablewrap">
+    <table>
+      <caption class="sub2" style="text-align:left;caption-side:top">缶の組み合わせ（本数が少ないほど余りが増えます）</caption>
+      <thead><tr><th>買い方</th><th>本数</th><th>合計</th><th>余り</th></tr></thead>
+      <tbody id="planRows"><tr><td colspan="4">—</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="note">
+  <strong>この計算は概算です。</strong>
+  下地の吸い込み具合、素材、道具（ハケ・ローラー・スプレー）、気温、塗り手の慣れによって
+  実際に使う量は変わります。メーカーが塗り面積を「4.9〜7㎡」のように幅で示しているのは
+  このためです。仕上がりや適合する下地については、製品の説明書と販売店・施工店などの
+  専門家にご確認ください。計算結果にもとづく購入について責任を負いかねます。
+</div>
+
+<h2>計算のしかた</h2>
+
+<h3>1. 塗る面積を出す（窓とドアは差し引く）</h3>
+<p>
+  壁の幅×高さを足し合わせ、そこから窓やドアなど<strong>塗らない部分の面積を引きます</strong>。
+  塗料は液体なので、塗らない面積の分はそのまま要りません。
+</p>
+<p>
+  同じ部屋でも<a href="/tools/wallpaper-quantity/">壁紙の必要量</a>では逆に
+  <strong>開口部を差し引きません</strong>。壁紙は窓の上下に出る切れ端が他の面に回せず、
+  引くと材料が足りなくなるためです。同じ「必要量計算」でも材料によって作法が違います。
+</p>
+
+<h3>2. 「1Lで何㎡塗れるか」は製品ごとに違う</h3>
+<p>
+  ネット上の計算ツールの多くは「水性なら8㎡/L」のような単一の値を使っていますが、
+  メーカーが実際に公表しているのは<strong>幅のある範囲</strong>です。
+  たとえばカンペハピオ「室内かべ用塗料」は0.7Lで
+  <strong>4.9〜7㎡</strong>（1回塗り）。1Lあたり7〜10㎡で、上下に4割以上の開きがあります。
+</p>
+<p>
+  このツールは範囲のまま計算し、答えも範囲で出します。
+  そのうえで<strong>最も塗料を食う側</strong>に予備を足した量を購入の目安にしています。
+  余った塗料は次の補修に使えますが、途中で足りなくなると乾き際が変わり仕上がりに差が出ます。
+</p>
+
+<h3>3. いちばんの落とし穴は「何回塗り基準の面積か」</h3>
+<p>
+  缶に書かれた塗り面積が<strong>1回塗り基準か2回塗り基準かは製品によって違います</strong>。
+  たとえばアサヒペン「水性多用途EX」の 40〜50㎡（7L）は<strong>2回塗りの数字</strong>で、
+  同社「水性多用途カラー」の 36〜47㎡（5L）は<strong>1回塗りの数字</strong>です。
+  これを取り違えると必要量が倍または半分にずれます。
+  このツールでは製品ごとに基準回数を持たせ、基準と違う回数を選んだときは画面に断りを出します。
+</p>
+
+<h3>4. 缶は「組み合わせ」で買う</h3>
+<p>
+  塗料は0.7L・1.6L・3L・7Lのような決まった容量でしか売られていません。
+  5.3L必要でも5.3Lの缶は無いので、<strong>合計が必要量を超える組み合わせ</strong>を選ぶことになります。
+  本数を減らすほど余りが増え、余りを減らすほど本数が増えます。
+  どちらが安いかは実売価格しだい（一般に大容量ほど1Lあたりは安くなります）なので、
+  このツールは<strong>本数と余りの候補を並べて示し、選択は使う人に委ねます</strong>。
+</p>
+
+<h2>よくある質問</h2>
+
+<h3>6畳の部屋の壁を塗るには何リットル必要ですか</h3>
+<p>
+  一般的な6畳間（約360cm×270cm・天井高250cm）の壁4面は31.5㎡。
+  腰高窓1つとドア1つを差し引くと<strong>約27㎡</strong>です。
+  カンペハピオ「室内かべ用塗料」で2回塗りするなら理論値は約5.4〜7.7L、
+  予備10%を含めて<strong>約8.5L</strong>。7L缶＋1.6L缶の2缶が目安になります。
+  上のボタンから同じ条件を入力できます。
+</p>
+
+<h3>壁紙（クロス）の上から塗れますか</h3>
+<p>
+  製品によります。カンペハピオ「室内かべ用塗料」は塗れるものとして
+  「ビニールかべ紙」を挙げています。一方で、はがれかけている壁紙や、
+  凹凸の大きいもの、汚れが浮くものは適さないとされることがあります。
+  <strong>使う製品の表示を必ず確認してください。</strong>
+</p>
+
+<h3>1回塗りで済ませてもいいですか</h3>
+<p>
+  下地の色を大きく変える場合（濃い色から白へ、など）は、1回では下の色が透けます。
+  2回塗りが基本と考え、塗り回数の選択を「2回塗り」のままにしておくのが無難です。
+  なお2回目は塗り重ね時間を空ける必要があり、
+  たとえばアサヒペン「水性多用途EX」では夏期2時間以上・冬期6時間以上とされています。
+</p>
+
+<h3>缶に書かれた数字を直接入れたい</h3>
+<p>
+  製品の選択で「缶の表示を直接入力する」を選ぶと、
+  手元の缶の標準塗り面積・容量・基準回数を入力して計算できます。
+  収録していない製品や、業務用の塗料はこちらを使ってください。
+</p>
+
+<h2>出典</h2>
+<p class="src">
+  塗り面積はすべて各メーカーの公式製品ページの表記をそのまま使用しています（丸めていません）。
+  1回塗り基準の塗布量が2社で 約7〜10㎡/L と一致することを確認しました。
+</p>
+<ul class="src">
+  <li>カンペハピオ「室内かべ用塗料」
+    <a href="https://www.kanpe.co.jp/products/6000/" rel="nofollow noopener" target="_blank">kanpe.co.jp</a>
+    — 1回塗り基準／0.7L:4.9〜7㎡、1.6L:11.2〜16㎡、3L:21〜30㎡、7L:49〜70㎡</li>
+  <li>アサヒペン「水性多用途EX」
+    <a href="https://www.asahipen.jp/products/view/29500" rel="nofollow noopener" target="_blank">asahipen.jp</a>
+    — 2回塗り基準／1/5L:1.1〜1.4㎡、0.7L:4〜5㎡、1.6L:9〜11㎡、3L:17〜22㎡、7L:40〜50㎡、14L:80〜100㎡</li>
+  <li>アサヒペン「水性スーパーコート」
+    <a href="https://www.asahipen.jp/products/view/20003" rel="nofollow noopener" target="_blank">asahipen.jp</a>
+    — 一般色は1回塗り基準／0.7L:5.0〜6.6㎡、1.6L:11〜15㎡、5L:36〜47㎡、10L:71〜94㎡</li>
+  <li>アサヒペン「水性多用途カラー」
+    <a href="https://www.asahipen.jp/products/view/29610" rel="nofollow noopener" target="_blank">asahipen.jp</a>
+    — 1回塗り基準／1/5L:1.4〜1.9㎡、0.7L:5.0〜6.6㎡、1.6L:11〜15㎡、5L:36〜47㎡、10L:71〜94㎡</li>
+</ul>
+<p class="src">最終確認日: 2026年8月6日</p>
+
+</main>
+
+<footer class="wrap">
+  <a href="/">トップ</a>
+  <a href="/tools/wallpaper-quantity/">壁紙の必要量</a>
+  <a href="/privacy.html">プライバシーポリシー</a>
+  <a href="/contact.html">お問い合わせ</a>
+  <p>&copy; 2026 くらしの計算室</p>
+</footer>
+
+<script type="module">
+import { PRODUCTS, DEFAULT_PRODUCT_ID, calculate } from "./calc.js";
+
+const CUSTOM = "__custom__";
+const PRESETS = {
+  6: [[360, 250], [270, 250], [360, 250], [270, 250]],
+  8: [[360, 250], [360, 250], [360, 250], [360, 250]],
+};
+const DEFAULT_OPENINGS = [[165, 170, 1], [80, 200, 1]];
+
+const $ = (id) => document.getElementById(id);
+const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
+const fmt = (n, d = 1) => n.toFixed(d);
+
+const $walls = $("walls");
+const $openings = $("openings");
+const $product = $("product");
+
+for (const p of PRODUCTS) {
+  const o = document.createElement("option");
+  o.value = p.id;
+  o.textContent = `${p.maker} ${p.name}（${p.basisCoats}回塗り基準）`;
+  $product.appendChild(o);
+}
+{
+  const o = document.createElement("option");
+  o.value = CUSTOM;
+  o.textContent = "缶の表示を直接入力する";
+  $product.appendChild(o);
+}
+$product.value = DEFAULT_PRODUCT_ID;
+
+function wallRow(w = "", h = 250) {
+  const div = document.createElement("div");
+  div.className = "row";
+  div.innerHTML = `
+    <div><label>幅 (cm)</label><input type="number" inputmode="numeric" min="0" step="1"
+      class="w" placeholder="360" value="${w}" aria-label="塗る面の幅(cm)"></div>
+    <div><label>高さ (cm)</label><input type="number" inputmode="numeric" min="0" step="1"
+      class="h" value="${h}" aria-label="塗る面の高さ(cm)"></div>
+    <button type="button" class="del" aria-label="この面を削除">✕</button>`;
+  $walls.appendChild(div);
+}
+
+function openingRow(w = "", h = "", c = 1) {
+  const div = document.createElement("div");
+  div.className = "row opening";
+  div.innerHTML = `
+    <div><label>幅 (cm)</label><input type="number" inputmode="numeric" min="0" step="1"
+      class="w" placeholder="165" value="${w}" aria-label="開口部の幅(cm)"></div>
+    <div><label>高さ (cm)</label><input type="number" inputmode="numeric" min="0" step="1"
+      class="h" placeholder="170" value="${h}" aria-label="開口部の高さ(cm)"></div>
+    <div><label>枚数</label><input type="number" inputmode="numeric" min="1" step="1"
+      class="c" value="${c}" aria-label="同じ開口部の数"></div>
+    <button type="button" class="del" aria-label="この開口部を削除">✕</button>`;
+  $openings.appendChild(div);
+}
+
+const readRows = (root, withCount) =>
+  [...root.children].map((el) => ({
+    widthCm: num(el.querySelector(".w").value),
+    heightCm: num(el.querySelector(".h").value),
+    count: withCount ? num(el.querySelector(".c").value) : 1,
+  }));
+
+function render() {
+  const isCustom = $product.value === CUSTOM;
+  $("customBox").classList.toggle("hide", !isCustom);
+
+  const r = calculate({
+    walls: readRows($walls, false),
+    openings: readRows($openings, true),
+    productId: $product.value,
+    customSpec: isCustom ? {
+      areaM2: num($("cArea").value),
+      volumeL: num($("cVol").value),
+      basisCoats: num($("cBasis").value),
+      canVolumesL: $("cSizes").value.split(",").map(num).filter((v) => v > 0),
+    } : null,
+    coats: num($("coats").value),
+    sparePercent: num($("spare").value),
+  });
+
+  const $rec = $("recommended");
+  const $sum = $("summary");
+  const $warn = $("warn");
+  const $rows = $("planRows");
+
+  if (r.need.recommendedL <= 0) {
+    $rec.innerHTML = `— <small>L</small>`;
+    $sum.textContent = isCustom && r.areaM2 > 0
+      ? "缶の標準塗り面積と容量を入力してください。"
+      : "塗る面のサイズを入力してください。";
+    $warn.classList.add("hide");
+    $rows.innerHTML = `<tr><td colspan="4">—</td></tr>`;
+    return;
+  }
+
+  $rec.innerHTML = `${fmt(r.need.recommendedL, 1)}<small> L</small>`;
+  $sum.textContent =
+    `塗る面積 ${fmt(r.areaM2, 2)}㎡（総面積 ${fmt(r.grossM2, 2)}㎡ − 開口部 ${fmt(r.openingsM2, 2)}㎡）。` +
+    `${r.options.coats}回塗りの理論値は ${fmt(r.need.minL, 1)}〜${fmt(r.need.maxL, 1)}L。` +
+    `多い側に予備${r.options.sparePercent}%を足して ${fmt(r.need.recommendedL, 1)}L。`;
+
+  const msgs = [];
+  if (r.need.scaled && r.ratio) {
+    msgs.push(`この製品の公表値は${r.ratio.basisCoats}回塗り基準です。` +
+      `${r.options.coats}回塗りぶんは1回あたり同量として比例換算した目安です。`);
+  }
+  if (!r.plan) {
+    msgs.push("必要量が大きく、市販の缶の組み合わせは表示していません（業務用の規模です）。");
+  }
+  $warn.textContent = msgs.join(" ");
+  $warn.classList.toggle("hide", msgs.length === 0);
+
+  $rows.innerHTML = r.plan
+    ? r.plan.options.map((o) => `<tr>
+        <td>${o.cans.map((c) => `${c.volumeL}L×${c.count}`).join(" ＋ ")}</td>
+        <td>${o.canCount}缶</td><td>${fmt(o.totalL, 1)}L</td><td>${fmt(o.wasteL, 1)}L</td>
+      </tr>`).join("")
+    : `<tr><td colspan="4">—</td></tr>`;
+}
+
+$("addWall").addEventListener("click", () => { wallRow(); render(); });
+$("addOpening").addEventListener("click", () => { openingRow(); render(); });
+$("clearOpenings").addEventListener("click", () => { $openings.innerHTML = ""; render(); });
+
+for (const root of [$walls, $openings]) {
+  root.addEventListener("input", render);
+  root.addEventListener("click", (e) => {
+    if (!e.target.classList.contains("del")) return;
+    e.target.closest(".row").remove();
+    render();
+  });
+}
+
+for (const b of document.querySelectorAll("[data-preset]")) {
+  b.addEventListener("click", () => {
+    $walls.innerHTML = "";
+    for (const [w, h] of PRESETS[b.dataset.preset]) wallRow(w, h);
+    render();
+  });
+}
+
+for (const id of ["product", "coats", "spare", "cBasis"]) {
+  $(id).addEventListener("change", render);
+}
+for (const id of ["cArea", "cVol", "cSizes"]) {
+  $(id).addEventListener("input", render);
+}
+
+for (const [w, h] of PRESETS[6]) wallRow(w, h);
+for (const [w, h, c] of DEFAULT_OPENINGS) openingRow(w, h, c);
+render();
+</script>
+
+</body>
+</html>

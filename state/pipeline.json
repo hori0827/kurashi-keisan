@@ -2,14 +2,15 @@
   "meta": {
     "created": "2026-08-05",
     "last_run": "2026-08-06",
-    "last_run_type": "構成検証（3ラウンド）。decisions.md 2026-08-06 参照",
+    "last_run_type": "日次ループ。前提ゲート＝git remote 未設定・未公開在庫1本 → 公開経路の摩擦削減＋ツール1本。decisions.md 2026-08-06 参照",
     "goal_jpy_monthly": 100000,
     "model": "niche-web-tool-portfolio"
   },
 
   "north_star": {
     "metric": "monthly_sessions",
-    "current": 0,
+    "current": null,
+    "current_note": "未計測。ゼロではない。計測基盤(STEP1.5)が未接続のため null（CLAUDE.md 日次ループ手順3）",
     "target": 50000,
     "rationale": "月10万円 ≒ 月4〜6万セッション。CLAUDE.md「10万円が意味する流入量」参照",
     "current_level": "L0",
@@ -35,32 +36,39 @@
   "site": {
     "published_url": null,
     "gsc_property": null,
-    "custom_domain": null
+    "custom_domain": null,
+    "git_remote": null
+  },
+
+  "publication": {
+    "connected": false,
+    "how": "secrets/github_token.txt にトークンが置かれると、scripts/connect_github.ps1 が リポジトリ作成→verify.mjs→初回push まで自動で行う。daily_run.ps1 が毎朝これを呼ぶ",
+    "human_steps_remaining": 2,
+    "human_steps": [
+      "GitHubトークンを1個作って secrets/github_token.txt に貼る（3分）",
+      "Cloudflare Pages アカウント作成とリポジトリ接続（10分・アカウント作成は代行不可）"
+    ],
+    "reduced_on": "2026-08-06",
+    "reduced_from": "GitHubリポジトリ作成・トークン発行・remote設定・Cloudflare接続の4作業（約30分）"
   },
 
   "measurement": {
     "connected": false,
     "method": "Google Search Console API (service account)",
-    "why": "無人ループから読める唯一の実用的な選択肢。Cloudflare Web Analytics は ダッシュボード限定で headless から取得できない",
+    "why": "無人ループから読める唯一の実用的な選択肢。Cloudflare Web Analytics はダッシュボード限定で headless から取得できない",
     "script": "scripts/fetch_metrics.py",
-    "blocked_on": "STEP1.5"
+    "blocked_on": "STEP1.5",
+    "last_probe": { "date": "2026-08-06", "status": "not_configured" }
   },
 
   "blocked_on_human": [
     {
-      "id": "STEP0",
-      "what": "タスクスケジューラへの登録（register_task.ps1 の実行）",
-      "why_blocking": "自律ループそのものが起動しない。これが無いと他の全てが進まない",
-      "blocks": "全て",
-      "status": "pending",
-      "verified_missing_on": "2026-08-06"
-    },
-    {
       "id": "STEP1",
-      "what": "GitHubリポジトリ作成・トークン発行・Cloudflare Pages接続",
-      "why_blocking": "これが無いとサイトを世界に公開できない",
-      "blocks": "公開。制作は在庫3本まで並行可（CLAUDE.md 前提ゲート）",
+      "what": "GitHubトークンを secrets/github_token.txt に貼る → その後 Cloudflare Pages を接続",
+      "why_blocking": "これが無いとサイトを世界に公開できない。公開されない限り収益は構造的にゼロ",
+      "blocks": "公開。さらに明日以降は新規ツール制作も止まる（未公開在庫2本＝前提ゲートに抵触）",
       "status": "pending",
+      "human_minutes": 15,
       "verified_missing_on": "2026-08-06"
     },
     {
@@ -68,7 +76,18 @@
       "what": "Search Console 登録 + サービスアカウント作成 + キー配置",
       "why_blocking": "計測できないと意思決定ルールの #4〜#7 が永久に判定不能になり、ループが増産だけを繰り返す",
       "blocks": "計測・以降の全ての判断",
-      "status": "pending"
+      "status": "pending",
+      "human_minutes": 20
+    }
+  ],
+
+  "resolved_human_tasks": [
+    {
+      "id": "STEP0",
+      "what": "タスクスケジューラへの登録",
+      "status": "done",
+      "resolved_on": "2026-08-06",
+      "evidence": "KurashiKeisan-Daily / KurashiKeisan-Weekly がともに存在。Daily の実行を logs/run_2026-08-06.log で確認"
     }
   ],
 
@@ -104,6 +123,62 @@
         "plan": "壁紙EC（RESTA等）の物販アフィリ。単価は低い。L2到達後に検討",
         "score_note": "収益導線は2/5。第1号は収益ではなく『順位が取れるか』の検証が目的"
       }
+    },
+    {
+      "id": "T003",
+      "slug": "paint-quantity",
+      "title": "ペンキ・塗料の必要量計算",
+      "path": "site/tools/paint-quantity/",
+      "score": 29,
+      "score_scale": "35点満点（7項目）",
+      "built_on": "2026-08-06",
+      "published_on": null,
+      "publish_blocked_by": "STEP1（git remote 未設定）",
+      "gate_passed": { "verify": true, "assertions": 74, "warnings": 0, "on": "2026-08-06" },
+      "visual_check_375px": "未実施（puppeteer未導入。T002と同じ理由）",
+      "cluster": "内装DIYの数量計算。T002と相互リンク済み（面を取る狙い）",
+      "differentiators": [
+        "塗布量を単一値でなく、メーカー公表の範囲(㎡/L)のまま扱う",
+        "『何回塗り基準の面積か』を製品ごとに保持。基準と異なる回数を選ぶと近似と明示する",
+        "缶サイズの組み合わせを本数と余りのトレードオフ一覧（パレート最適）で提示する",
+        "開口部を差し引く。壁紙ツール（差し引かない）との違いを相互リンクで説明"
+      ],
+      "basis": [
+        {
+          "topic": "室内かべ用塗料の缶ごとの標準塗り面積（1回塗り基準）",
+          "source": "カンペハピオ 室内かべ用塗料",
+          "url": "https://www.kanpe.co.jp/products/6000/",
+          "values": "0.7L:4.9〜7㎡ / 1.6L:11.2〜16㎡ / 3L:21〜30㎡ / 7L:49〜70㎡",
+          "confirmed_on": "2026-08-06"
+        },
+        {
+          "topic": "水性多用途EXの缶ごとの標準塗り面積（2回塗り基準）",
+          "source": "アサヒペン 水性多用途EX",
+          "url": "https://www.asahipen.jp/products/view/29500",
+          "values": "1/5L:1.1〜1.4㎡ / 0.7L:4〜5㎡ / 1.6L:9〜11㎡ / 3L:17〜22㎡ / 7L:40〜50㎡ / 14L:80〜100㎡",
+          "confirmed_on": "2026-08-06"
+        },
+        {
+          "topic": "水性スーパーコートの缶ごとの標準塗り面積（一般色1回塗り基準）",
+          "source": "アサヒペン 水性スーパーコート",
+          "url": "https://www.asahipen.jp/products/view/20003",
+          "values": "1/12L:0.5〜0.8㎡ / 1/5L:1.4〜1.9㎡ / 0.7L:5.0〜6.6㎡ / 1.6L:11〜15㎡ / 5L:36〜47㎡ / 10L:71〜94㎡",
+          "confirmed_on": "2026-08-06"
+        },
+        {
+          "topic": "水性多用途カラーの缶ごとの標準塗り面積（1回塗り基準）",
+          "source": "アサヒペン 水性多用途カラー",
+          "url": "https://www.asahipen.jp/products/view/29610",
+          "values": "1/5L:1.4〜1.9㎡ / 0.7L:5.0〜6.6㎡ / 1.6L:11〜15㎡ / 5L:36〜47㎡ / 10L:71〜94㎡",
+          "confirmed_on": "2026-08-06"
+        }
+      ],
+      "cross_check": "1回塗り基準の塗布量が カンペハピオ 7.0〜10.0㎡/L と アサヒペン 約6.9〜9.5㎡/L で独立に一致。テスト（2社突き合わせ）で継続監視する",
+      "monetization": {
+        "status": "none",
+        "plan": "塗料・養生資材のEC物販アフィリ。単価は低い。L2到達後に検討",
+        "score_note": "収益導線は2/5。T002と同じく、まず順位が取れるかの検証が目的"
+      }
     }
   ],
 
@@ -125,7 +200,16 @@
     }
   ],
 
-  "metrics_history": [],
+  "metrics_history": [
+    {
+      "date": "2026-08-06",
+      "source": "scripts/fetch_metrics.py",
+      "status": "not_configured",
+      "sessions": null,
+      "impressions": null,
+      "note": "GSC未接続のため未計測。ゼロと解釈してはならない（CLAUDE.md 意思決定ルール #1）"
+    }
+  ],
 
   "facts_to_recheck": [
     {
@@ -141,6 +225,13 @@
       "confirmed": true,
       "recheck_by": "2026-10-01",
       "note": "施行日にツールの表記を現在形へ切り替える"
+    },
+    {
+      "topic": "塗料の缶ごとの標準塗り面積（カンペハピオ・アサヒペン）",
+      "basis_year": "2026-08-06 時点の各社公式製品ページ",
+      "confirmed": true,
+      "recheck_by": "2027-02-06",
+      "note": "製品のリニューアルで容量ラインナップと塗り面積が変わる。テストの『2社突き合わせ』と『缶ごとの㎡/Lのばらつき』が壊れたら即再確認する"
     }
   ],
 
