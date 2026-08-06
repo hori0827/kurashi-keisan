@@ -17,7 +17,9 @@ import { join, dirname, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const SITE = join(ROOT, "site");
+// 公開されるフォルダ。GitHub Pages が「main ブランチの /docs」を配信するため
+// この名前でなければならない（CLAUDE.md「公開の仕組み」参照）。
+const SITE = join(ROOT, "docs");
 
 const errors = [];
 const warns = [];
@@ -36,7 +38,7 @@ function walk(dir, ext, acc = []) {
 
 // ── 1. HTML の静的検査 ────────────────────────────────────────────────
 const pages = walk(SITE, ".html");
-if (pages.length === 0) err("site/", "HTMLが1枚も無い");
+if (pages.length === 0) err("docs/", "HTMLが1枚も無い");
 
 for (const page of pages) {
   const rel = relative(ROOT, page).replaceAll("\\", "/");
@@ -99,7 +101,7 @@ for (const dir of toolDirs) {
   const abs = join(SITE, "tools", dir);
   const tests = walk(abs, ".test.mjs");
   if (tests.length === 0) {
-    err(`site/tools/${dir}`, "計算ロジックのテストが無い（公開前ゲート1を通過できない）");
+    err(`docs/tools/${dir}`, "計算ロジックのテストが無い（公開前ゲート1を通過できない）");
     continue;
   }
   for (const t of tests) {
@@ -120,12 +122,12 @@ for (const dir of toolDirs) {
 }
 
 // ── 3. サイト全体の SEO 基盤 ────────────────────────────────────────
-if (!existsSync(join(SITE, "robots.txt"))) err("site/robots.txt", "存在しない");
+if (!existsSync(join(SITE, "robots.txt"))) err("docs/robots.txt", "存在しない");
 
 const pipeline = JSON.parse(readFileSync(join(ROOT, "state", "pipeline.json"), "utf8"));
 const published = pipeline.site?.published_url;
 if (published && !existsSync(join(SITE, "sitemap.xml")))
-  err("site/sitemap.xml", "公開URLが確定しているのに sitemap が無い。node scripts/gen_sitemap.mjs");
+  err("docs/sitemap.xml", "公開URLが確定しているのに sitemap が無い。node scripts/gen_sitemap.mjs");
 
 // ── 4. 実レンダリング検証（puppeteer があるときだけ） ────────────────
 let rendered = false;

@@ -9,7 +9,7 @@ import { join, dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const SITE = join(ROOT, "site");
+const SITE = join(ROOT, "docs");   // GitHub Pages の配信元（main ブランチの /docs）
 
 const pipeline = JSON.parse(readFileSync(join(ROOT, "state", "pipeline.json"), "utf8"));
 const base = (pipeline.site?.custom_domain || pipeline.site?.published_url || "").replace(/\/$/, "");

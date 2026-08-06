@@ -42,14 +42,21 @@
 
   "publication": {
     "connected": false,
-    "how": "secrets/github_token.txt にトークンが置かれると、scripts/connect_github.ps1 が リポジトリ作成→verify.mjs→初回push まで自動で行う。daily_run.ps1 が毎朝これを呼ぶ",
+    "host": "GitHub Pages",
+    "host_changed_from": "Cloudflare Pages",
+    "host_change_reason": "Cloudflareは別アカウントの新規作成が必要で、人間にしか行えなかった。GitHub Pages ならリポジトリと同じアカウントで完結し、人間の作業が1つ丸ごと消える",
+    "repo": "hori0827/hori0827.github.io",
+    "repo_kind": "user site（プロジェクトサイトだとルートが /tools/ になり絶対パスが全て404する）",
+    "source": "main ブランチの /docs フォルダ",
+    "how": "main に push すればそれだけで反映される。ビルドも外部サービスも不要",
     "human_steps_remaining": 2,
     "human_steps": [
-      "GitHubトークンを1個作って secrets/github_token.txt に貼る（3分）",
-      "Cloudflare Pages アカウント作成とリポジトリ接続（10分・アカウント作成は代行不可）"
+      "https://github.com/new でリポジトリ hori0827.github.io を作る（Public・READMEなし・約40秒）",
+      "リポジトリ Settings→Pages で Source=main / フォルダ=/docs を選ぶ（約30秒）"
     ],
+    "human_steps_note": "トークン発行は不要。Windows資格情報に保存済みのGitHubログインを git が内部で使うため、push は自動で通る。secrets/github_token.txt を置けば上の2つも自動化される",
     "reduced_on": "2026-08-06",
-    "reduced_from": "GitHubリポジトリ作成・トークン発行・remote設定・Cloudflare接続の4作業（約30分）"
+    "reduced_from": "GitHubリポジトリ作成・トークン発行・remote設定・Cloudflareアカウント作成・Pages接続（約30分）"
   },
 
   "measurement": {
@@ -96,7 +103,7 @@
       "id": "T002",
       "slug": "wallpaper-quantity",
       "title": "壁紙・クロスの必要量計算",
-      "path": "site/tools/wallpaper-quantity/",
+      "path": "docs/tools/wallpaper-quantity/",
       "score": 28,
       "score_scale": "35点満点（7項目）",
       "built_on": "2026-08-06",
@@ -128,7 +135,7 @@
       "id": "T003",
       "slug": "paint-quantity",
       "title": "ペンキ・塗料の必要量計算",
-      "path": "site/tools/paint-quantity/",
+      "path": "docs/tools/paint-quantity/",
       "score": 29,
       "score_scale": "35点満点（7項目）",
       "built_on": "2026-08-06",
