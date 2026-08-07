@@ -4,15 +4,15 @@
 // 公開URL（state/pipeline.json の site.published_url）が確定して初めて動く。
 // sitemap は絶対URLを要求するため、URLが無い状態では正しく作れない。
 //
-// ⚠ robots.txt について（2026-08-07 判明）
-// 本サイトはプロジェクトサイト（https://<login>.github.io/<repo>/）で配信される。
-// robots.txt は **ホストのルートにあるものしか読まれない**ため、ここで書き出す
-// docs/robots.txt は /<repo>/robots.txt に置かれ、クローラからは無視される。
-// ホスト直下の robots.txt は同一アカウントの別プロジェクト（HG Analytics）の管理下にある。
-//   - 2026-08-07 時点の内容は "Allow: /" で、当サイトの巡回は妨げられていない
-//   - ただし他プロジェクトの都合で変わりうるので、週次レビューで確認すること
-// したがって **sitemap は Search Console から直接送信する**（SETUP_HUMAN.md STEP 1.5-6）。
-// docs/robots.txt は独自ドメインへ移行したときに初めて有効になる。
+// ⚠ base は必ずスキーム付きの絶対URLにすること（2026-08-07 のドライランでバグ検出）
+// pipeline.site.custom_domain は "keisanshitsu.com" のような**スキーム無しの裸のドメイン**。
+// これをそのまま連結すると <loc>keisanshitsu.com/</loc> という不正な sitemap と、
+// スキーム欠落の Sitemap 行を持つ robots.txt が生成される。どちらも無効で、
+// しかも見た目は正常なので気づきにくい。normalizeBase() で必ず正規化する。
+//
+// robots.txt は **ホストのルートにあるものしか読まれない**。
+// 独自ドメイン（サイトのルート = ドメインのルート）なら docs/robots.txt が有効になる。
+// プロジェクトサイト配信のままだと無視されるので、その場合は警告を出す。
 
 import { readdirSync, readFileSync, writeFileSync, statSync, existsSync } from "node:fs";
 import { join, dirname, relative, resolve } from "node:path";
@@ -22,10 +22,26 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SITE = join(ROOT, "docs");   // GitHub Pages の配信元（main ブランチの /docs）
 
 const pipeline = JSON.parse(readFileSync(join(ROOT, "state", "pipeline.json"), "utf8"));
-const base = (pipeline.site?.custom_domain || pipeline.site?.published_url || "").replace(/\/$/, "");
+
+/** 裸のドメインでもURLでも受け取り、必ず "https://host[/path]" の形（末尾スラッシュ無し）にする */
+function normalizeBase(value) {
+  const v = (value ?? "").trim();
+  if (!v) return "";
+  const withScheme = /^https?:\/\//i.test(v) ? v : `https://${v}`;
+  try {
+    const u = new URL(withScheme);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return "";
+    return (u.origin + u.pathname).replace(/\/+$/, "");
+  } catch {
+    return "";
+  }
+}
+
+const base = normalizeBase(pipeline.site?.custom_domain) ||
+             normalizeBase(pipeline.site?.published_url);
 
 if (!base) {
-  console.log("published_url が未設定。公開経路の接続（SETUP_HUMAN STEP 1）が先。");
+  console.log("公開URLが未設定。公開経路の接続（SETUP_HUMAN STEP 1）が先。");
   process.exit(0);
 }
 
@@ -55,7 +71,10 @@ writeFileSync(join(SITE, "sitemap.xml"),
 writeFileSync(join(SITE, "robots.txt"),
   `User-agent: *\nAllow: /\n\nSitemap: ${base}/sitemap.xml\n`, "utf8");
 
-console.log(`sitemap.xml を生成: ${urls.length} URL (${base})`);
-if (!/^https?:\/\/[^/]+\/?$/.test(base + "/"))
+console.log(`sitemap.xml を生成: ${urls.length} URL (${base}/)`);
+
+// サイトのルートがドメインのルートと一致しない配信（プロジェクトサイト等）では
+// docs/robots.txt はクローラに読まれない。その場合だけ手動送信を促す。
+if (new URL(base).pathname !== "/")
   console.log("注意: サブディレクトリ配信のため docs/robots.txt はクローラに読まれない。"
     + `sitemap は Search Console から直接送信すること → ${base}/sitemap.xml`);

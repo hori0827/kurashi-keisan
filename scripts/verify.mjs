@@ -143,6 +143,23 @@ const published = pipeline.site?.published_url;
 if (published && !existsSync(join(SITE, "sitemap.xml")))
   err("docs/sitemap.xml", "公開URLが確定しているのに sitemap が無い。node scripts/gen_sitemap.mjs");
 
+// 独自ドメインを使うなら docs/CNAME が必須。これが無いと GitHub Pages は
+// カスタムドメインを配信せず、名前入りの <user>.github.io URL のまま公開される。
+// 「設定したつもりで名前が出ていた」を機械的に防ぐ。
+const domain = pipeline.site?.custom_domain;
+const cnamePath = join(SITE, "CNAME");
+if (domain) {
+  if (!existsSync(cnamePath)) {
+    err("docs/CNAME", `独自ドメイン ${domain} を使う設定だが CNAME が無い。node scripts/set_domain.mjs ${domain}`);
+  } else {
+    const cname = readFileSync(cnamePath, "utf8").trim();
+    if (cname !== domain)
+      err("docs/CNAME", `内容 "${cname}" が pipeline.json の custom_domain "${domain}" と一致しない`);
+  }
+} else if (existsSync(cnamePath)) {
+  warn("docs/CNAME", "CNAME があるのに pipeline.json の custom_domain が未設定。どちらが正か確認する");
+}
+
 // ── 4. 実レンダリング検証（puppeteer があるときだけ） ────────────────
 let rendered = false;
 try {
