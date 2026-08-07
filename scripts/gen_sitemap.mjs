@@ -3,6 +3,16 @@
 //
 // 公開URL（state/pipeline.json の site.published_url）が確定して初めて動く。
 // sitemap は絶対URLを要求するため、URLが無い状態では正しく作れない。
+//
+// ⚠ robots.txt について（2026-08-07 判明）
+// 本サイトはプロジェクトサイト（https://<login>.github.io/<repo>/）で配信される。
+// robots.txt は **ホストのルートにあるものしか読まれない**ため、ここで書き出す
+// docs/robots.txt は /<repo>/robots.txt に置かれ、クローラからは無視される。
+// ホスト直下の robots.txt は同一アカウントの別プロジェクト（HG Analytics）の管理下にある。
+//   - 2026-08-07 時点の内容は "Allow: /" で、当サイトの巡回は妨げられていない
+//   - ただし他プロジェクトの都合で変わりうるので、週次レビューで確認すること
+// したがって **sitemap は Search Console から直接送信する**（SETUP_HUMAN.md STEP 1.5-6）。
+// docs/robots.txt は独自ドメインへ移行したときに初めて有効になる。
 
 import { readdirSync, readFileSync, writeFileSync, statSync, existsSync } from "node:fs";
 import { join, dirname, relative, resolve } from "node:path";
@@ -46,3 +56,6 @@ writeFileSync(join(SITE, "robots.txt"),
   `User-agent: *\nAllow: /\n\nSitemap: ${base}/sitemap.xml\n`, "utf8");
 
 console.log(`sitemap.xml を生成: ${urls.length} URL (${base})`);
+if (!/^https?:\/\/[^/]+\/?$/.test(base + "/"))
+  console.log("注意: サブディレクトリ配信のため docs/robots.txt はクローラに読まれない。"
+    + `sitemap は Search Console から直接送信すること → ${base}/sitemap.xml`);

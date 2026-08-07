@@ -1,8 +1,8 @@
 {
   "meta": {
     "created": "2026-08-05",
-    "last_run": "2026-08-06",
-    "last_run_type": "日次ループ。前提ゲート＝git remote 未設定・未公開在庫1本 → 公開経路の摩擦削減＋ツール1本。decisions.md 2026-08-06 参照",
+    "last_run": "2026-08-07",
+    "last_run_type": "日次ループ。前提ゲート＝git remote 未設定・未公開在庫2本 → ツール制作は禁止、公開経路の解決のみ。公開先リポジトリ名が別プロジェクトに occupied だったことを検出し、プロジェクトサイトへ再設計。decisions.md 2026-08-07 参照",
     "goal_jpy_monthly": 100000,
     "model": "niche-web-tool-portfolio"
   },
@@ -35,7 +35,10 @@
 
   "site": {
     "published_url": null,
+    "published_url_planned": "https://hori0827.github.io/kurashi-keisan/",
     "gsc_property": null,
+    "gsc_property_planned": "https://hori0827.github.io/kurashi-keisan/",
+    "gsc_property_warning": "末尾の /kurashi-keisan/ を必ず含める。ホスト直下にすると HG Analytics の数字が混入し、流入の帰属が判別不能になる",
     "custom_domain": null,
     "git_remote": null
   },
@@ -45,18 +48,56 @@
     "host": "GitHub Pages",
     "host_changed_from": "Cloudflare Pages",
     "host_change_reason": "Cloudflareは別アカウントの新規作成が必要で、人間にしか行えなかった。GitHub Pages ならリポジトリと同じアカウントで完結し、人間の作業が1つ丸ごと消える",
-    "repo": "hori0827/hori0827.github.io",
-    "repo_kind": "user site（プロジェクトサイトだとルートが /tools/ になり絶対パスが全て404する）",
+    "repo": "hori0827/kurashi-keisan",
+    "repo_kind": "project site（https://hori0827.github.io/kurashi-keisan/）",
+    "repo_changed_on": "2026-08-07",
+    "repo_changed_from": "hori0827/hori0827.github.io",
+    "repo_change_reason": "そのリポジトリ名は既に埋まっていた。ユーザーが同一アカウントで運用中の別本番サイト『HG Analytics』（AI株価スクリーニング。2026-05-09開設・102コミット・Pages稼働中）が使用している。2026-08-06 の設計は空きを確認せずに決めており、初回pushは毎朝失敗し続けていた",
     "source": "main ブランチの /docs フォルダ",
     "how": "main に push すればそれだけで反映される。ビルドも外部サービスも不要",
     "human_steps_remaining": 2,
     "human_steps": [
-      "https://github.com/new でリポジトリ hori0827.github.io を作る（Public・READMEなし・約40秒）",
+      "https://github.com/new でリポジトリ kurashi-keisan を作る（Public・READMEなし・約40秒）",
       "リポジトリ Settings→Pages で Source=main / フォルダ=/docs を選ぶ（約30秒）"
     ],
     "human_steps_note": "トークン発行は不要。Windows資格情報に保存済みのGitHubログインを git が内部で使うため、push は自動で通る。secrets/github_token.txt を置けば上の2つも自動化される",
     "reduced_on": "2026-08-06",
-    "reduced_from": "GitHubリポジトリ作成・トークン発行・remote設定・Cloudflareアカウント作成・Pages接続（約30分）"
+    "reduced_from": "GitHubリポジトリ作成・トークン発行・remote設定・Cloudflareアカウント作成・Pages接続（約30分）",
+    "safety_invariants": [
+      "hori0827/hori0827.github.io には push しない。ユーザーの別本番サイトである",
+      "git push --force を使わない。push 拒否に --force を足すことは 102コミットの本番サイトの破壊にあたる",
+      "push 先に既存コミットがあれば connect_github.ps1 が exit 8 で中止する。この安全装置を外さない",
+      "ユーザーの他プロジェクトのファイル・リポジトリに触れない"
+    ],
+    "safety_verified_on": "2026-08-07",
+    "safety_verification_evidence": "connect_github.ps1 -RepoName hori0827.github.io を実際に実行し、exit 8 で中止・remote未設定・API読み取りのみであることを確認した"
+  },
+
+  "subdirectory_constraints": {
+    "why": "プロジェクトサイトはサイトのルートがドメインのルートと一致しない",
+    "resolved": [
+      {
+        "issue": "ルート絶対パス（/privacy.html 等）が404する",
+        "fix": "docs/ の内部リンク19箇所を全て相対パスへ変更。verify.mjs がルート絶対リンクをERROR判定し、相対リンクの解決先の実在も確認する",
+        "fixed_on": "2026-08-07",
+        "regression_test": "contact.html に意図的に壊れたリンクを入れて ERROR 2件・exit 1 を確認済み"
+      }
+    ],
+    "accepted": [
+      {
+        "issue": "docs/robots.txt はクローラに読まれない（robots.txt はホスト直下のみ有効）",
+        "impact": "sitemap の自動宣言ができない",
+        "workaround": "Search Console から sitemap を直接送信する（SETUP_HUMAN.md STEP 1.5-6）",
+        "host_robots_txt_observed": "User-agent: * / Allow: / （2026-08-07 実測。当サイトの巡回は妨げられていない）",
+        "host_robots_txt_owner": "HG Analytics。他プロジェクトの都合で変わりうるため週次レビューで確認する"
+      },
+      {
+        "issue": "ドメイン評価と主題を株式スクリーニングサイトと共有する",
+        "impact": "検索上の不利。程度は不明",
+        "workaround": "独自ドメイン（STEP 3-1）で解消できる。任意 → L1到達後の推奨 に格上げした",
+        "note": "リンクを全て相対にしたので、移行時に docs/ の中身は1行も変えなくてよい"
+      }
+    ]
   },
 
   "measurement": {
@@ -71,20 +112,24 @@
   "blocked_on_human": [
     {
       "id": "STEP1",
-      "what": "GitHubトークンを secrets/github_token.txt に貼る → その後 Cloudflare Pages を接続",
+      "what": "https://github.com/new でリポジトリ kurashi-keisan を作る（40秒）→ Settings→Pages で main / /docs を選ぶ（30秒）",
       "why_blocking": "これが無いとサイトを世界に公開できない。公開されない限り収益は構造的にゼロ",
-      "blocks": "公開。さらに明日以降は新規ツール制作も止まる（未公開在庫2本＝前提ゲートに抵触）",
+      "blocks": "公開。新規ツール制作も既に停止中（未公開在庫2本＝前提ゲートに抵触）",
       "status": "pending",
-      "human_minutes": 15,
-      "verified_missing_on": "2026-08-06"
+      "human_minutes": 1,
+      "verified_missing_on": "2026-08-07",
+      "instruction_corrected_on": "2026-08-07",
+      "instruction_error": "2026-08-06 の案内は『hori0827.github.io を作れ』だったが、そのリポジトリは既に存在し HG Analytics が稼働していたため、人間が実行しても成功しえなかった。リポジトリ名を kurashi-keisan に訂正した",
+      "repo_absence_verified_on": "2026-08-07"
     },
     {
       "id": "STEP1.5",
-      "what": "Search Console 登録 + サービスアカウント作成 + キー配置",
+      "what": "Search Console 登録（URLプレフィックス = https://hori0827.github.io/kurashi-keisan/）+ サービスアカウント作成 + キー配置 + sitemap の手動送信",
       "why_blocking": "計測できないと意思決定ルールの #4〜#7 が永久に判定不能になり、ループが増産だけを繰り返す",
       "blocks": "計測・以降の全ての判断",
       "status": "pending",
-      "human_minutes": 20
+      "human_minutes": 21,
+      "added_on_2026-08-07": "1.5-6（sitemap の手動送信）。サブディレクトリ配信では robots.txt が読まれないため"
     }
   ],
 
@@ -108,7 +153,7 @@
       "score_scale": "35点満点（7項目）",
       "built_on": "2026-08-06",
       "published_on": null,
-      "publish_blocked_by": "STEP1（git remote 未設定）",
+      "publish_blocked_by": "STEP1（git remote 未設定。2026-08-07 に公開先リポジトリを kurashi-keisan へ変更済み）",
       "gate_passed": { "verify": true, "assertions": 22, "warnings": 0, "on": "2026-08-06" },
       "visual_check_375px": "未実施（puppeteer未導入。理由は decisions.md 2026-08-06 参照）",
       "basis": [
@@ -140,7 +185,7 @@
       "score_scale": "35点満点（7項目）",
       "built_on": "2026-08-06",
       "published_on": null,
-      "publish_blocked_by": "STEP1（git remote 未設定）",
+      "publish_blocked_by": "STEP1（git remote 未設定。2026-08-07 に公開先リポジトリを kurashi-keisan へ変更済み）",
       "gate_passed": { "verify": true, "assertions": 74, "warnings": 0, "on": "2026-08-06" },
       "visual_check_375px": "未実施（puppeteer未導入。T002と同じ理由）",
       "cluster": "内装DIYの数量計算。T002と相互リンク済み（面を取る狙い）",
@@ -215,6 +260,14 @@
       "sessions": null,
       "impressions": null,
       "note": "GSC未接続のため未計測。ゼロと解釈してはならない（CLAUDE.md 意思決定ルール #1）"
+    },
+    {
+      "date": "2026-08-07",
+      "source": "scripts/fetch_metrics.py",
+      "status": "not_configured",
+      "sessions": null,
+      "impressions": null,
+      "note": "GSC未接続のため未計測。null であってゼロではない。そもそも未公開なので流入が発生しうる状態にすらない"
     }
   ],
 

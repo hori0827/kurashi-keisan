@@ -1,7 +1,11 @@
 ﻿# 公開経路をつなぐ — GitHub リポジトリへの接続と初回 push
 #
-# 公開先は GitHub Pages（ユーザーサイト / main ブランチの /docs）。
-# 詳細と、なぜ Cloudflare Pages をやめたかは CLAUDE.md「公開の仕組み」を参照。
+# 公開先は GitHub Pages（**プロジェクトサイト** / main ブランチの /docs）。
+#   https://<login>.github.io/<RepoName>/
+#
+# ⚠ 2026-08-07 変更: 公開先をユーザーサイト(<login>.github.io)から
+#   プロジェクトサイトへ変更した。理由は「安全装置」の項を読むこと。
+#   詳細は CLAUDE.md「公開の仕組み」と state/decisions.md 2026-08-07。
 #
 # 2つのモードがある。状況に応じて自動で選ばれる。
 #
@@ -13,7 +17,18 @@
 #       remote 設定と push はこのスクリプトが行う。
 #       この場合スクリプトはトークンの値を一切読まない（git が内部で資格情報を使う）。
 #
-# 日次ランナー(daily_run.ps1)からも自動で呼ばれる。
+# ── 安全装置（絶対に外さないこと） ────────────────────────────────────
+# ユーザーは同じGitHubアカウントで **別の本番サイトを運用している**。
+#   hori0827.github.io = HG Analytics（株式スクリーニング。2026-05-09 開設・102コミット）
+# 当初このリポジトリ名を公開先に指定していたが、**既に埋まっていた**。
+# 2026-08-07 の日次実行がこれを検出するまで、初回 push は毎回失敗し続けていた。
+#
+# push が通らないときに `--force` や `-f` を足せば「解決」するが、
+# **それは他人の本番サイトを102コミットごと消す操作である。**
+# したがって本スクリプトは:
+#   1. push 先に既存コミットがあれば **push せずに中止する**
+#   2. `--force` を絶対に使わない
+# この2点を将来変更しないこと。変更するなら state/decisions.md に理由を残すこと。
 
 param(
     [string]$RepoName,
@@ -42,14 +57,65 @@ if ([string]::IsNullOrWhiteSpace($Login)) {
     Say "[error] git config user.name が未設定です。" 'Red'
     exit 2
 }
-# ユーザーサイトにしないと絶対パスが404する（CLAUDE.md 参照）
-if ([string]::IsNullOrWhiteSpace($RepoName)) { $RepoName = "$Login.github.io" }
-$RepoUrl = "https://github.com/$Login/$RepoName"
+# 既定はプロジェクトサイト用のリポジトリ名。
+# ユーザーサイト（<login>.github.io）は HG Analytics が使用中のため選べない。
+if ([string]::IsNullOrWhiteSpace($RepoName)) { $RepoName = 'kurashi-keisan' }
+$RepoUrl   = "https://github.com/$Login/$RepoName"
+$PagesUrl  = "https://$Login.github.io/$RepoName/"
 
 $TokenFile = Join-Path $Root 'secrets\github_token.txt'
-$HasToken = (Test-Path $TokenFile) -and -not [string]::IsNullOrWhiteSpace((Get-Content $TokenFile -Raw))
+$HasToken  = (Test-Path $TokenFile) -and -not [string]::IsNullOrWhiteSpace((Get-Content $TokenFile -Raw))
 
-# ── 3. モードA: トークンがあるならリポジトリ作成まで自動 ──────────────
+# ── 3. 安全装置: push 先が空であることを確認する ──────────────────────
+# 中身のあるリポジトリに push すると、良くて拒否、最悪は既存サイトの破壊になる。
+# 認証なしでも読める公開APIで、押し込む前に必ず確かめる。
+$ApiHeaders = @{ 'User-Agent' = 'kurashi-keisan-setup'; Accept = 'application/vnd.github+json' }
+
+$RepoExists = $true
+try {
+    Invoke-RestMethod -Uri "https://api.github.com/repos/$Login/$RepoName" `
+        -Headers $ApiHeaders -Method Get -ErrorAction Stop | Out-Null
+}
+catch {
+    if ($_.Exception.Response.StatusCode.value__ -eq 404) { $RepoExists = $false }
+    else {
+        Say "[error] GitHub API に到達できませんでした: $($_.Exception.Message)" 'Red'
+        Say "        通信を確認して再実行してください。確認できないまま push はしません。" 'Yellow'
+        exit 7
+    }
+}
+
+if ($RepoExists) {
+    # 空リポジトリなら commits API が 409 を返す。200 が返るなら中身がある。
+    $HasCommits = $true
+    try {
+        Invoke-RestMethod -Uri "https://api.github.com/repos/$Login/$RepoName/commits?per_page=1" `
+            -Headers $ApiHeaders -Method Get -ErrorAction Stop | Out-Null
+    }
+    catch {
+        if ($_.Exception.Response.StatusCode.value__ -eq 409) { $HasCommits = $false }
+    }
+
+    if ($HasCommits) {
+        Say ''
+        Say "[中止] $RepoUrl には既にコミットがあります。push しません。" 'Red'
+        Say ''
+        Say "  空でないリポジトリへの push は、拒否されるか、既存のサイトを壊します。" 'Yellow'
+        Say "  このプロジェクトは実際に一度これを踏んでいます:" 'Yellow'
+        Say "  $Login.github.io は HG Analytics（別の本番サイト）が使用中でした。" 'Yellow'
+        Say ''
+        Say "  対処:" 'Cyan'
+        Say "   (a) 別のリポジトリ名を使う  → -RepoName '<別の名前>' を付けて再実行" 'Cyan'
+        Say "   (b) このリポジトリが本プロジェクトのものなら（.git を作り直した等）:" 'Cyan'
+        Say "       git remote add origin $RepoUrl.git ; git pull --rebase origin main" 'Cyan'
+        Say ''
+        Say "  ⚠ push --force で通してはいけません。既存の履歴が消えます。" 'Red'
+        exit 8
+    }
+    Say "[ok] リポジトリは空です。push できます: $RepoUrl" 'Green'
+}
+
+# ── 4. モードA: トークンがあるならリポジトリ作成まで自動 ──────────────
 if ($HasToken) {
     $Token = (Get-Content $TokenFile -Raw).Trim()
     $Headers = @{
@@ -60,9 +126,13 @@ if ($HasToken) {
 
     try {
         $me = Invoke-RestMethod -Uri 'https://api.github.com/user' -Headers $Headers -Method Get -ErrorAction Stop
-        $Login = $me.login
-        $RepoName = "$Login.github.io"
-        $RepoUrl = "https://github.com/$Login/$RepoName"
+        if ($me.login -ne $Login) {
+            # 別アカウントのトークンだと、意図しない場所にリポジトリを作ってしまう
+            Say "[info] トークンの所有者は $($me.login) です（git config は $Login）。$($me.login) 側で進めます。" 'DarkGray'
+            $Login    = $me.login
+            $RepoUrl  = "https://github.com/$Login/$RepoName"
+            $PagesUrl = "https://$Login.github.io/$RepoName/"
+        }
         Say "[ok] 認証できました: $Login" 'Green'
     }
     catch {
@@ -70,15 +140,8 @@ if ($HasToken) {
         exit 3
     }
 
-    $exists = $true
-    try {
-        Invoke-RestMethod -Uri "https://api.github.com/repos/$Login/$RepoName" `
-            -Headers $Headers -Method Get -ErrorAction Stop | Out-Null
-    }
-    catch { $exists = $false }
-
-    if ($exists) {
-        Say "[ok] リポジトリは既にあります: $RepoUrl" 'Green'
+    if ($RepoExists) {
+        Say "[ok] リポジトリは既にあります（空）: $RepoUrl" 'Green'
     }
     else {
         $body = @{
@@ -112,9 +175,18 @@ else {
     # トークンの値はこのスクリプトも Claude も読まない。git が内部で使う。
     Say "[mode] トークン無し。Windows資格情報で push します（値は読みません）" 'DarkGray'
     git config --local credential.helper wincred
+
+    if (-not $RepoExists) {
+        Say ''
+        Say "[待ち] リポジトリ $RepoName がまだありません。作成は人間の作業です（約40秒）:" 'Yellow'
+        Say "        https://github.com/new" 'Cyan'
+        Say "        Repository name = $RepoName ／ Public ／ README等は追加しない" 'Cyan'
+        Say "        作ったら、このスクリプトをもう一度実行してください（翌朝の自動実行でも可）。" 'Yellow'
+        exit 1
+    }
 }
 
-# ── 4. 公開前ゲート ──────────────────────────────────────────────────
+# ── 5. 公開前ゲート ──────────────────────────────────────────────────
 # 初回 push も「公開」である以上、CLAUDE.md の公開前ゲートを必ず通す。
 # ここを飛ばすと、検証されていない状態が世界に出る最初の一回になってしまう。
 node (Join-Path $Root 'scripts\verify.mjs')
@@ -123,23 +195,26 @@ if ($LASTEXITCODE -ne 0) {
     exit 6
 }
 
-# ── 5. remote 設定と push ────────────────────────────────────────────
+# ── 6. remote 設定と push ────────────────────────────────────────────
+# ⚠ --force は使わない（冒頭「安全装置」参照）。push が拒否されたら、
+#    強制するのではなく必ず原因を調べること。
 git remote add origin "$RepoUrl.git"
 git branch -M main
 git push -u origin main
 if ($LASTEXITCODE -ne 0) {
     Say ''
-    Say "[error] push に失敗しました。" 'Red'
-    Say "        リポジトリ $RepoName がまだ無い場合は、先にここで作ってください:" 'Yellow'
-    Say "        https://github.com/new  →  名前を $RepoName / Public / READMEは追加しない" 'Yellow'
-    Say "        作ったら、このスクリプトをもう一度実行してください。" 'Yellow'
+    Say "[error] push に失敗しました。リポジトリは存在し空でしたので、原因は認証の可能性が高いです。" 'Red'
+    Say "        Windows資格情報に $Login のGitHubログインが無いか、期限切れかもしれません。" 'Yellow'
+    Say "        確認: コントロールパネル → 資格情報マネージャー → Windows資格情報 → git:https://github.com" 'Yellow'
+    Say "        あるいは https://github.com/settings/tokens/new?scopes=repo でトークンを作り" 'Yellow'
+    Say "        secrets\github_token.txt に貼れば、次回の実行で全自動になります。" 'Yellow'
+    Say "        ⚠ --force を足して通そうとしないこと。" 'Red'
     git remote remove origin
     exit 5
 }
 Say "[ok] push しました: $RepoUrl" 'Green'
 
-# ── 6. GitHub Pages を有効化（トークンがある場合のみ自動） ────────────
-$PagesUrl = "https://$Login.github.io/"
+# ── 7. GitHub Pages を有効化（トークンがある場合のみ自動） ────────────
 if ($HasToken) {
     $pagesBody = @{ source = @{ branch = 'main'; path = '/docs' } } | ConvertTo-Json
     try {

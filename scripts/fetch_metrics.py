@@ -9,7 +9,13 @@
   2. Search Console のプロパティ設定 → ユーザーと権限 → そのサービスアカウントの
      メールアドレスを「フル」権限で追加する
   3. state/pipeline.json の site.gsc_property に対象URLを書く
-     （例: "sc-domain:example.com" または "https://example.pages.dev/"）
+     現在の値: "https://hori0827.github.io/kurashi-keisan/"（URLプレフィックス型）
+
+     ⚠ 末尾の "/kurashi-keisan/" を必ず含めること。ここを "https://hori0827.github.io/"
+     にすると、同じホストで別に稼働している HG Analytics（株式スクリーニング）の
+     数字が混入する。流入がどちらのものか区別できなくなり、意思決定ルールの
+     #4〜#7 が誤った前提で発火する。独自ドメインへ移行したら
+     "sc-domain:<取得したドメイン>" に置き換えてよい。
 
 依存: py -3 -m pip install google-api-python-client google-auth
 

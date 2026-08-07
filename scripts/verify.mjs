@@ -67,11 +67,25 @@ for (const page of pages) {
     if (html.toLowerCase().includes(bad.toLowerCase()))
       err(rel, `未完成マーカー "${bad}" が残っている`);
 
-  // 内部リンクの死活
-  for (const m of html.matchAll(/href=["'](\/[^"'#?]*)["']/g)) {
-    let t = m[1];
+  // 内部リンクの死活。
+  // 配信先はプロジェクトサイト（https://<user>.github.io/<repo>/）であり、
+  // サイトのルートがドメインのルートと一致しない。したがって "/privacy.html" のような
+  // ルート絶対パスは他人のサイト（HG Analytics）を指して404する。
+  // 相対パスのみを許可し、ページの位置から解決して実在を確認する。
+  const pageDir = dirname(page);
+  for (const m of html.matchAll(/\b(?:href|src)=["']([^"']+)["']/g)) {
+    const raw = m[1].trim();
+    if (/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(raw)) continue; // 外部URL・mailto・ページ内アンカー
+    if (raw.startsWith("/")) {
+      err(rel, `ルート絶対リンク ${raw} — 配信先がサブディレクトリなので404する。相対パスにすること`);
+      continue;
+    }
+    let t = raw.split("#")[0].split("?")[0];
+    if (t === "") continue;
     if (t.endsWith("/")) t += "index.html";
-    if (!existsSync(join(SITE, t))) err(rel, `内部リンク切れ: ${t}`);
+    const target = resolve(pageDir, t);
+    if (!target.startsWith(SITE)) err(rel, `docs の外を指すリンク: ${raw}`);
+    else if (!existsSync(target)) err(rel, `内部リンク切れ: ${raw}`);
   }
 
   // YMYL 必須表記
