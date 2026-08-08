@@ -228,6 +228,31 @@ Google のスパムポリシー「大規模コンテンツ不正使用」は、
 なお**リンクは相対パスのまま維持する**。独自ドメインならルート絶対パスでも動くが、
 相対パスはどこに置いても動くので、わざわざ壊れやすいほうへ戻す理由がない。
 
+### push と「公開」は別物である（2026-08-08 確認）
+
+**GitHub Pages は Settings→Pages で発行元を設定するまで1枚も公開しない**
+（[公式ドキュメント](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)）。
+したがって:
+
+- **リポジトリ作成と初回 push は、ドメイン取得を待つ必要がない。** 待たせていたのは
+  2026-08-07 の設計ミスで、40秒の無料作業を10分の有料作業の後ろに並べていた。
+  push はバックアップと経路確認になり、公開は始まらない
+- **公開の引き金は Pages の有効化だけ。** `connect_github.ps1` は
+  `site.custom_domain` が未設定のうちは Pages を有効化しない（名前入りURLで
+  先に公開してしまうのを防ぐため）
+
+### push が拒否されたときの正しい手順（`--force` の代わり）
+
+**カスタムドメインを Settings→Pages で設定すると、GitHub が `CNAME` ファイルの
+コミットをソースブランチに直接追加する**（[公式ドキュメント](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)）。
+このとき手元は遅れ、次の push は non-fast-forward で拒否される。
+**これは異常ではなく正常な合流待ちである。**
+
+- 正: `git fetch origin main` → `git pull --rebase origin main` → `git push`
+- 誤: `git push --force`（相手側のコミットが消える。本ドクトリンで禁止）
+
+`connect_github.ps1` はこの合流を自動で行い、競合したら `rebase --abort` して中止する。
+
 ### ⚠ `hori0827.github.io` は使えない（2026-08-07 判明）
 
 **このリポジトリ名は既に埋まっている。** ユーザーは同じGitHubアカウントで

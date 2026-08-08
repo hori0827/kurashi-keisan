@@ -66,6 +66,25 @@ $PagesUrl  = "https://$Login.github.io/$RepoName/"
 $TokenFile = Join-Path $Root 'secrets\github_token.txt'
 $HasToken  = (Test-Path $TokenFile) -and -not [string]::IsNullOrWhiteSpace((Get-Content $TokenFile -Raw))
 
+# ── 2.5. 独自ドメインが確定しているか ────────────────────────────────
+# push と「公開」は別物である。GitHub Pages は Settings→Pages で発行元を
+# 設定するまで1枚も公開しない（GitHub公式ドキュメントで確認・2026-08-08）。
+# したがって push はドメインを待たずに行ってよいが、**Pages の有効化＝公開の引き金**は
+# ドメインが決まるまで引かない。先に引くと <login>.github.io/<repo>/ で公開が始まり、
+# 「URLに名前や数字を入れたくない」という要件を満たさないURLが先に世に出てしまう。
+$CustomDomain = $null
+$PipelinePath = Join-Path $Root 'state\pipeline.json'
+if (Test-Path $PipelinePath) {
+    try {
+        $pipeline = (Get-Content $PipelinePath -Raw -Encoding UTF8) | ConvertFrom-Json
+        $CustomDomain = $pipeline.site.custom_domain
+    }
+    catch {
+        Say "[warn] pipeline.json を読めませんでした。ドメイン未確定として扱います。" 'Yellow'
+    }
+}
+$DomainReady = -not [string]::IsNullOrWhiteSpace($CustomDomain)
+
 # ── 3. 安全装置: push 先が空であることを確認する ──────────────────────
 # 中身のあるリポジトリに push すると、良くて拒否、最悪は既存サイトの破壊になる。
 # 認証なしでも読める公開APIで、押し込む前に必ず確かめる。
@@ -182,6 +201,10 @@ else {
         Say "        https://github.com/new" 'Cyan'
         Say "        Repository name = $RepoName ／ Public ／ README等は追加しない" 'Cyan'
         Say "        作ったら、このスクリプトをもう一度実行してください（翌朝の自動実行でも可）。" 'Yellow'
+        if (-not $DomainReady) {
+            Say "        ⚠ 作成後、Settings→Pages はまだ開かないでください（独自ドメイン取得後に設定します）。" 'Yellow'
+            Say "          リポジトリを作って push しただけでは、ページは1枚も公開されません。" 'DarkGray'
+        }
         exit 1
     }
 }
@@ -201,9 +224,37 @@ if ($LASTEXITCODE -ne 0) {
 git remote add origin "$RepoUrl.git"
 git branch -M main
 git push -u origin main
-if ($LASTEXITCODE -ne 0) {
+$Pushed = ($LASTEXITCODE -eq 0)
+
+if (-not $Pushed) {
+    # 拒否の理由が「向こうが進んでいる」だけなら、合流すれば通る。--force ではない。
+    # これは実際に起きうる: カスタムドメインを Settings→Pages で設定すると、GitHub が
+    # CNAME ファイルのコミットをソースブランチに直接追加する
+    # （公式ドキュメントで確認・2026-08-08）。そのとき手元は遅れ、push は
+    # non-fast-forward で拒否される。ここで --force を選ぶと向こうのコミットが消える。
+    Say "[info] push が拒否されました。リモートが進んでいないか調べます（--force は使いません）。" 'Yellow'
+    git fetch origin main
+    $remoteHead = if ($LASTEXITCODE -eq 0) { (git rev-parse origin/main 2>$null) } else { $null }
+
+    if (-not [string]::IsNullOrWhiteSpace($remoteHead)) {
+        Say "[info] リモートに手元に無いコミットがあります。git pull --rebase で合流します。" 'Yellow'
+        git pull --rebase origin main
+        if ($LASTEXITCODE -eq 0) {
+            git push -u origin main
+            $Pushed = ($LASTEXITCODE -eq 0)
+            if ($Pushed) { Say "[ok] 合流して push しました: $RepoUrl" 'Green' }
+        }
+        else {
+            git rebase --abort 2>$null
+            Say "[中止] rebase が競合しました。手元の状態は元に戻してあります。" 'Red'
+            Say "        競合内容を確認して手動で解決してください。⚠ --force は使わないこと。" 'Red'
+        }
+    }
+}
+
+if (-not $Pushed) {
     Say ''
-    Say "[error] push に失敗しました。リポジトリは存在し空でしたので、原因は認証の可能性が高いです。" 'Red'
+    Say "[error] push に失敗しました。リモートは進んでいないので、原因は認証の可能性が高いです。" 'Red'
     Say "        Windows資格情報に $Login のGitHubログインが無いか、期限切れかもしれません。" 'Yellow'
     Say "        確認: コントロールパネル → 資格情報マネージャー → Windows資格情報 → git:https://github.com" 'Yellow'
     Say "        あるいは https://github.com/settings/tokens/new?scopes=repo でトークンを作り" 'Yellow'
@@ -214,7 +265,23 @@ if ($LASTEXITCODE -ne 0) {
 }
 Say "[ok] push しました: $RepoUrl" 'Green'
 
-# ── 7. GitHub Pages を有効化（トークンがある場合のみ自動） ────────────
+# ── 7. GitHub Pages（＝公開の引き金） ────────────────────────────────
+# ドメインが未確定のうちは有効化しない。ここを押すと <login>.github.io/<repo>/ で
+# 公開が始まり、「URLに名前や数字を入れたくない」という要件に反するURLが先に世に出る。
+# push しただけでは1枚も公開されない（GitHub公式ドキュメント・2026-08-08 確認）ので、
+# 待っている間もコードは安全に GitHub 上へ退避できている。
+if (-not $DomainReady) {
+    Say ''
+    Say "[保留] GitHub Pages はまだ有効化しません（独自ドメインが未確定のため）。" 'Yellow'
+    Say "       この時点でページは1枚も公開されていません。バックアップと経路確認が済んだ状態です。" 'DarkGray'
+    Say ''
+    Say "  次にやること: SETUP_HUMAN.md の STEP 1-B（ドメイン取得・10分）" 'Cyan'
+    Say "  ドメイン名が決まったら:  node scripts\set_domain.mjs <ドメイン>" 'Cyan'
+    Say "  その後 Settings→Pages を設定すれば公開されます（STEP 1-C）。" 'Cyan'
+    exit 0
+}
+
+$PublicUrl = "https://$CustomDomain/"
 if ($HasToken) {
     $pagesBody = @{ source = @{ branch = 'main'; path = '/docs' } } | ConvertTo-Json
     try {
@@ -231,12 +298,14 @@ if ($HasToken) {
 }
 else {
     Say ''
-    Say "残りは1箇所だけです（約30秒）:" 'Cyan'
+    Say "残りは1箇所だけです（約40秒）:" 'Cyan'
     Say "  $RepoUrl/settings/pages" 'Cyan'
     Say "  Source = 'Deploy from a branch' / Branch = main / フォルダ = /docs → Save" 'Cyan'
+    Say "  Custom domain = $CustomDomain → Save（DNS は SETUP_HUMAN.md STEP 1-D）" 'Cyan'
 }
 
 Say ''
-Say "公開URL（反映まで1〜2分）: $PagesUrl" 'Green'
-Say "反映されたら state\pipeline.json の site.published_url に書き込むこと。" 'DarkGray'
+Say "公開URL: $PublicUrl" 'Green'
+Say "（DNS反映前は $PagesUrl 側で先に見えることがある）" 'DarkGray'
+Say "開けたら state\pipeline.json の site.published_url に書き込むこと。" 'DarkGray'
 exit 0

@@ -1,8 +1,8 @@
 {
   "meta": {
     "created": "2026-08-05",
-    "last_run": "2026-08-07",
-    "last_run_type": "日次ループ。前提ゲート＝git remote 未設定・未公開在庫2本 → ツール制作は禁止、公開経路の解決のみ。公開先リポジトリ名が別プロジェクトに occupied だったことを検出し、プロジェクトサイトへ再設計。decisions.md 2026-08-07 参照",
+    "last_run": "2026-08-08",
+    "last_run_type": "日次ループ。前提ゲート＝git remote 未設定・未公開在庫2本 → ツール制作は禁止、公開経路の解決のみ。人間タスクの直列化（40秒の無料作業が10分の有料作業の後ろに並んでいた）を解消し、STEP1 を 1-A(即実行可)/1-B(ドメイン)/1-C(公開の引き金) に分割。decisions.md 2026-08-08 参照",
     "goal_jpy_monthly": 100000,
     "model": "niche-web-tool-portfolio"
   },
@@ -35,11 +35,13 @@
 
   "site": {
     "published_url": null,
-    "published_url_planned": "https://hori0827.github.io/kurashi-keisan/",
+    "published_url_planned": "https://<STEP1-B で取得する独自ドメイン>/",
+    "published_url_fallback": "https://hori0827.github.io/kurashi-keisan/",
+    "published_url_fallback_note": "ドメインを取らない判断になった場合のみ。この場合 gsc_property は末尾の /kurashi-keisan/ を必ず含める（ホスト直下にすると HG Analytics の数字が混入し流入の帰属が判別不能になる）",
     "gsc_property": null,
-    "gsc_property_planned": "https://hori0827.github.io/kurashi-keisan/",
-    "gsc_property_warning": "末尾の /kurashi-keisan/ を必ず含める。ホスト直下にすると HG Analytics の数字が混入し、流入の帰属が判別不能になる",
+    "gsc_property_planned": "ドメイン型プロパティ（取得した独自ドメイン。DNSのTXTレコードで確認）",
     "custom_domain": null,
+    "custom_domain_note": "set_domain.mjs がここと docs/CNAME・sitemap・robots.txt をまとめて更新する。ここが null の間 connect_github.ps1 は Pages を有効化しない（＝公開されない）",
     "git_remote": null
   },
 
@@ -55,11 +57,16 @@
     "repo_change_reason": "そのリポジトリ名は既に埋まっていた。ユーザーが同一アカウントで運用中の別本番サイト『HG Analytics』（AI株価スクリーニング。2026-05-09開設・102コミット・Pages稼働中）が使用している。2026-08-06 の設計は空きを確認せずに決めており、初回pushは毎朝失敗し続けていた",
     "source": "main ブランチの /docs フォルダ",
     "how": "main に push すればそれだけで反映される。ビルドも外部サービスも不要",
-    "human_steps_remaining": 2,
+    "human_steps_remaining": 3,
     "human_steps": [
-      "https://github.com/new でリポジトリ kurashi-keisan を作る（Public・READMEなし・約40秒）",
-      "リポジトリ Settings→Pages で Source=main / フォルダ=/docs を選ぶ（約30秒）"
+      "1-A: https://github.com/new でリポジトリ kurashi-keisan を作る（Public・READMEなし・約40秒）。ドメイン不要・今すぐ実行可・公開は始まらない",
+      "1-B: 独自ドメインを取得する（約10分・年1,000〜2,000円）",
+      "1-C: Settings→Pages で Source=main / フォルダ=/docs＋Custom domain を設定し、DNSを登録（約4分）"
     ],
+    "human_steps_serialization_fixed_on": "2026-08-08",
+    "human_steps_serialization_note": "2026-08-07 は 1-A が 1-B の後ろに並べられており、40秒の無料作業が10分の有料作業に足止めされていた。push しても Pages を設定するまで公開されない事実を公式ドキュメントで確認し、1-A を先頭へ戻した",
+    "pages_enable_gated_on_domain": true,
+    "pages_enable_gate_reason": "custom_domain が未設定のうちに Pages を有効化すると、名前入りURLで公開が始まり『URLに名前や数字を入れたくない』という要件に反する。connect_github.ps1 が exit 0 で保留する",
     "human_steps_note": "トークン発行は不要。Windows資格情報に保存済みのGitHubログインを git が内部で使うため、push は自動で通る。secrets/github_token.txt を置けば上の2つも自動化される",
     "reduced_on": "2026-08-06",
     "reduced_from": "GitHubリポジトリ作成・トークン発行・remote設定・Cloudflareアカウント作成・Pages接続（約30分）",
@@ -111,20 +118,48 @@
 
   "blocked_on_human": [
     {
-      "id": "STEP1",
-      "what": "https://github.com/new でリポジトリ kurashi-keisan を作る（40秒）→ Settings→Pages で main / /docs を選ぶ（30秒）",
-      "why_blocking": "これが無いとサイトを世界に公開できない。公開されない限り収益は構造的にゼロ",
-      "blocks": "公開。新規ツール制作も既に停止中（未公開在庫2本＝前提ゲートに抵触）",
+      "id": "STEP1-A",
+      "what": "https://github.com/new でリポジトリ kurashi-keisan を作る（Public・READMEなし）。作成後 Settings→Pages は開かない",
+      "why_blocking": "push 先が無い。これが無い限り remote を設定できず、プロジェクトのコピーが世界に1つも存在しない",
+      "blocks": "初回push（＝バックアップと公開経路の実地確認）",
       "status": "pending",
-      "human_minutes": 1,
-      "verified_missing_on": "2026-08-07",
+      "human_minutes": 0.7,
+      "depends_on": null,
+      "depends_on_note": "ドメインに依存しない。2026-08-08 に直列化を解消した",
+      "publishes_anything": false,
+      "publishes_anything_evidence": "GitHub Pages は Settings→Pages で発行元を設定するまで公開しない。https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site （2026-08-08 確認）",
+      "repo_absence_verified_on": "2026-08-08",
       "instruction_corrected_on": "2026-08-07",
-      "instruction_error": "2026-08-06 の案内は『hori0827.github.io を作れ』だったが、そのリポジトリは既に存在し HG Analytics が稼働していたため、人間が実行しても成功しえなかった。リポジトリ名を kurashi-keisan に訂正した",
-      "repo_absence_verified_on": "2026-08-07"
+      "instruction_error": "2026-08-06 の案内は『hori0827.github.io を作れ』だったが、そのリポジトリは既に存在し HG Analytics が稼働していたため、人間が実行しても成功しえなかった。リポジトリ名を kurashi-keisan に訂正した"
+    },
+    {
+      "id": "STEP1-B",
+      "what": "独自ドメインを取得する（推奨 keisanshitsu.com）。年1,000〜2,000円",
+      "why_blocking": "公開URLをこれにすると決めたため、公開の引き金（1-C）がこれを待つ",
+      "blocks": "公開（1-C）・Search Console 登録（STEP1.5）",
+      "status": "pending",
+      "human_minutes": 10,
+      "availability_reverified_on": "2026-08-08",
+      "availability_method": "RDAP（TLDごとの正しいレジストリ endpoint）と DNS の NXDOMAIN の2系統で照合",
+      "available_candidates": ["keisanshitsu.com", "shirabeshitsu.com", "kurashinokeisan.com", "kurashi-keisan.net"],
+      "decision_deadline": "2026-08-12",
+      "on_deadline": "『名前入りURL（hori0827.github.io/kurashi-keisan/）で先に公開し、ドメインは後から移す』案を最上位で提案する。URLに名前が出るのは見た目の問題だが、未公開は収益が構造的にゼロという問題であるため。ただし公開の引き金は人間にしか引けないので最終判断はユーザーに残る"
+    },
+    {
+      "id": "STEP1-C",
+      "what": "Settings→Pages で Source=main / フォルダ=/docs＋Custom domain を設定し、DNSに A4件・AAAA4件・CNAME(www) を登録",
+      "why_blocking": "これが公開の引き金。ここを押すまで1枚も公開されない",
+      "blocks": "公開そのもの",
+      "status": "pending",
+      "human_minutes": 4,
+      "depends_on": "STEP1-B",
+      "side_effect": "この操作で GitHub が CNAME ファイルのコミットをソースブランチに追加する（公式ドキュメントで確認・2026-08-08）。手元は遅れ、次の push は non-fast-forward で拒否される。対処は git pull --rebase。--force は禁止（connect_github.ps1 が自動で合流する）"
     },
     {
       "id": "STEP1.5",
-      "what": "Search Console 登録（URLプレフィックス = https://hori0827.github.io/kurashi-keisan/）+ サービスアカウント作成 + キー配置 + sitemap の手動送信",
+      "what": "Search Console 登録（『ドメイン』型 = 取得した独自ドメイン。DNSのTXTで確認）+ サービスアカウント作成 + キー配置 + sitemap 送信",
+      "property_type_changed_on": "2026-08-08",
+      "property_type_change_reason": "独自ドメインに切り替えたので URLプレフィックス型から『ドメイン』型へ。www有無・http/https をまとめて計測でき、HG Analytics の数字が混入する懸念も消える",
       "why_blocking": "計測できないと意思決定ルールの #4〜#7 が永久に判定不能になり、ループが増産だけを繰り返す",
       "blocks": "計測・以降の全ての判断",
       "status": "pending",
@@ -268,6 +303,14 @@
       "sessions": null,
       "impressions": null,
       "note": "GSC未接続のため未計測。null であってゼロではない。そもそも未公開なので流入が発生しうる状態にすらない"
+    },
+    {
+      "date": "2026-08-08",
+      "source": "scripts/fetch_metrics.py",
+      "status": "not_configured",
+      "sessions": null,
+      "impressions": null,
+      "note": "GSC未接続のため未計測（null）。公開ページ数は0のまま3日目。リポジトリ hori0827/kurashi-keisan の不在を GitHub API で再確認（404）"
     }
   ],
 
