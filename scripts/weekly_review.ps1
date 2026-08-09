@@ -5,6 +5,9 @@
 
 $ErrorActionPreference = 'Continue'
 
+# ログの文字化け対策。理由は daily_run.ps1 の同じ箇所に書いてある（2026-08-09）
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 

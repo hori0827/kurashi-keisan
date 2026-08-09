@@ -8,6 +8,15 @@
 
 $ErrorActionPreference = 'Continue'
 
+# ── ログの文字化け対策（2026-08-09 修正）───────────────────────────────
+# claude は UTF-8 でstdoutを吐くが、Windows PowerShell 5.1 は native コマンドの
+# 出力を [Console]::OutputEncoding で復号する。タスクスケジューラから起動すると
+# ここが CP932 になるため、UTF-8のバイト列が別の文字として解釈され、
+# ログの本文がすべて文字化けする（run_2026-08-06〜09.log が実際にそうなっていた）。
+# 対話セッションでは chcp 65001 のことが多く、手で流すと再現しないので気づきにくい。
+# 記録が読めないと、記憶を持たない次回の自分が過去を検証できない。
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
