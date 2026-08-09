@@ -45,6 +45,77 @@ Set-Location $Root
 
 function Say($msg, $color = 'Gray') { if (-not $Quiet) { Write-Host $msg -ForegroundColor $color } }
 
+# ── 資格情報ヘルパ（2026-08-09 追加） ────────────────────────────────
+# 2026-08-08 まで、本スクリプトは「トークンファイルが無い＝APIは使えない」と決めつけ、
+# リポジトリ作成を人間の作業として4日間待ち続けていた。**これは誤りだった。**
+# Windows資格情報に保存済みの GitHub トークンを実測したところ、
+# gho_ 形式・スコープ `gist, repo, workflow` で、API が 200 を返した（2026-08-09）。
+# repo スコープがある以上、リポジトリ作成も Pages 設定も人間を待つ必要が無い。
+#
+# ⚠ トークンの値は決して表示・記録しない。daily_run.ps1 が本スクリプトの出力を
+#   logs\run_*.log に流すため、1回でも出力すると平文で残り続ける。
+function Get-StoredGitHubToken {
+    # git credential fill はキー行を **LF区切り・空行終端** で stdin に要求する。
+    # Windows PowerShell 5.1 からこれを渡す方法は素直ではない（2026-08-09 に3通り実測）:
+    #   × パイプ（"..." | git credential fill）      → CRLF が付き git が拒否
+    #   × ProcessStartInfo + StandardInput 書き込み → 同上（BaseStream に生バイトでも不可）
+    #   ○ 一時ファイルへ ASCII+LF で書き、cmd のリダイレクトで渡す
+    # いずれも失敗すると "refusing to work with credential missing protocol field" になる。
+    #
+    # ⚠ 一時ファイルに書くのは **要求（protocol/host）だけ**である。
+    #   トークンは stdout で返るので、秘密がディスクに残ることはない。
+    $req = Join-Path $env:TEMP ("credreq_" + [Guid]::NewGuid().ToString('N') + ".txt")
+    $prevPrompt = $env:GIT_TERMINAL_PROMPT
+    try {
+        # 資格情報が無いとき端末入力を待って固まらないようにする（無人実行のため）
+        $env:GIT_TERMINAL_PROMPT = '0'
+        [System.IO.File]::WriteAllBytes($req,
+            [System.Text.Encoding]::ASCII.GetBytes("protocol=https`nhost=github.com`n`n"))
+        $out = cmd /c "git credential fill < ""$req"""
+        foreach ($line in @($out)) {
+            if ($line -match '^password=(.+?)\s*$') { return $Matches[1] }
+        }
+    }
+    catch { return $null }
+    finally {
+        $env:GIT_TERMINAL_PROMPT = $prevPrompt
+        Remove-Item $req -Force -ErrorAction SilentlyContinue
+    }
+    return $null
+}
+
+function Get-GitHubTokenScopes([string]$Token) {
+    # 戻り値: スコープ名の配列。認証そのものに失敗したら $null（空配列と区別する）。
+    try {
+        $h = @{ Authorization = "token $Token"; 'User-Agent' = 'kurashi-keisan-setup'
+                Accept = 'application/vnd.github+json' }
+        $r = Invoke-WebRequest -Uri 'https://api.github.com/user' -Headers $h `
+            -Method Get -UseBasicParsing -ErrorAction Stop
+        $raw = @($r.Headers['X-OAuth-Scopes']) -join ','
+        return @($raw -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    }
+    catch { return $null }
+}
+
+function New-GitHubRepo([string]$Token, [string]$Name) {
+    # 例外は呼び出し側で捕まえる。ここで握り潰すと「作れなかったのに進む」経路ができる。
+    #
+    # ⚠ 日本語を含む body は **UTF-8 のバイト列で送ること**。
+    #   Windows PowerShell 5.1 の ConvertTo-Json は非ASCIIを \uXXXX へ逃がさず、
+    #   Invoke-RestMethod は既定でそれを UTF-8 として送らない。文字列のまま渡すと
+    #   GitHub 側の description が "???????" になる（2026-08-09 に実際に発生させ、修正済み）。
+    $h = @{ Authorization = "token $Token"; 'User-Agent' = 'kurashi-keisan-setup'
+            Accept = 'application/vnd.github+json' }
+    $json = @{
+        name = $Name; description = 'くらしの計算室 — 根拠つきの計算ツール'
+        private = $false; auto_init = $false; has_issues = $false; has_wiki = $false
+    } | ConvertTo-Json
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+    Invoke-RestMethod -Uri 'https://api.github.com/user/repos' -Headers $h `
+        -Method Post -Body $bytes -ContentType 'application/json; charset=utf-8' `
+        -ErrorAction Stop | Out-Null
+}
+
 # ── 1. 既に繋がっているなら何もしない ────────────────────────────────
 if (@(git remote) -contains 'origin') {
     Say "[skip] origin は設定済み: $(git config --get remote.origin.url)" 'DarkGray'
@@ -65,6 +136,11 @@ $PagesUrl  = "https://$Login.github.io/$RepoName/"
 
 $TokenFile = Join-Path $Root 'secrets\github_token.txt'
 $HasToken  = (Test-Path $TokenFile) -and -not [string]::IsNullOrWhiteSpace((Get-Content $TokenFile -Raw))
+
+# API 呼び出しに使えるトークン。モードA（ファイル）でもモードC（Windows資格情報）でも
+# ここに入る。セクション7（Pages有効化）はモードを問わずこれを見る。
+# ⚠ 表示・記録しないこと。
+$ApiToken = $null
 
 # ── 2.5. 独自ドメインが確定しているか ────────────────────────────────
 # push と「公開」は別物である。GitHub Pages は Settings→Pages で発行元を
@@ -153,6 +229,7 @@ if ($HasToken) {
             $PagesUrl = "https://$Login.github.io/$RepoName/"
         }
         Say "[ok] 認証できました: $Login" 'Green'
+        $ApiToken = $Token
     }
     catch {
         Say "[error] トークンが無効か権限不足です。スコープ 'repo' を付け直してください。" 'Red'
@@ -163,13 +240,8 @@ if ($HasToken) {
         Say "[ok] リポジトリは既にあります（空）: $RepoUrl" 'Green'
     }
     else {
-        $body = @{
-            name = $RepoName; description = 'くらしの計算室 — 根拠つきの計算ツール'
-            private = $false; auto_init = $false; has_issues = $false; has_wiki = $false
-        } | ConvertTo-Json
         try {
-            Invoke-RestMethod -Uri 'https://api.github.com/user/repos' -Headers $Headers `
-                -Method Post -Body $body -ContentType 'application/json' -ErrorAction Stop | Out-Null
+            New-GitHubRepo -Token $Token -Name $RepoName
             Say "[ok] リポジトリを作成しました: $RepoUrl" 'Green'
         }
         catch {
@@ -190,22 +262,63 @@ if ($HasToken) {
     git config --local credential.helper store
 }
 else {
-    # ── モードB: 保存済みの Windows 資格情報に任せる ──────────────────
-    # トークンの値はこのスクリプトも Claude も読まない。git が内部で使う。
-    Say "[mode] トークン無し。Windows資格情報で push します（値は読みません）" 'DarkGray'
+    # ── モードB/C: 保存済みの Windows 資格情報を使う ──────────────────
+    # モードB … push だけを git に任せる（トークンの値を使わない）
+    # モードC … 同じ資格情報を API にも使う（repo スコープがある場合のみ）
+    Say "[mode] トークンファイル無し。Windows資格情報を使います（値は表示しません）" 'DarkGray'
     git config --local credential.helper wincred
 
     if (-not $RepoExists) {
-        Say ''
-        Say "[待ち] リポジトリ $RepoName がまだありません。作成は人間の作業です（約40秒）:" 'Yellow'
-        Say "        https://github.com/new" 'Cyan'
-        Say "        Repository name = $RepoName ／ Public ／ README等は追加しない" 'Cyan'
-        Say "        作ったら、このスクリプトをもう一度実行してください（翌朝の自動実行でも可）。" 'Yellow'
-        if (-not $DomainReady) {
-            Say "        ⚠ 作成後、Settings→Pages はまだ開かないでください（独自ドメイン取得後に設定します）。" 'Yellow'
-            Say "          リポジトリを作って push しただけでは、ページは1枚も公開されません。" 'DarkGray'
+        # 2026-08-09: ここで4日間止まっていた。「トークンファイルが無い＝APIは使えない」と
+        # 決めつけて人間を待っていたが、保存済み資格情報を実測したら repo スコープがあった。
+        # 待つ前に、まず自分で作れるかを試す。
+        $stored = Get-StoredGitHubToken
+        $scopes = $null
+        if ($stored) { $scopes = Get-GitHubTokenScopes $stored }
+
+        if ($null -ne $scopes -and (@($scopes) -contains 'repo' -or @($scopes) -contains 'public_repo')) {
+            Say "[ok] 保存済み資格情報が API に使えます（scopes: $($scopes -join ', ')）" 'Green'
+            try {
+                New-GitHubRepo -Token $stored -Name $RepoName
+                Say "[ok] リポジトリを作成しました（人間の作業ゼロ）: $RepoUrl" 'Green'
+                $RepoExists = $true
+                $ApiToken   = $stored
+            }
+            catch {
+                Say "[error] リポジトリを作成できませんでした: $($_.Exception.Message)" 'Red'
+                Say "        人間の作業に戻します。" 'Yellow'
+            }
         }
-        exit 1
+        elseif ($null -ne $scopes) {
+            Say "[info] 保存済み資格情報に repo スコープがありません（scopes: $($scopes -join ', ')）" 'DarkGray'
+        }
+        else {
+            Say "[info] 保存済み資格情報では API 認証できませんでした（期限切れの可能性）。" 'DarkGray'
+        }
+
+        if (-not $RepoExists) {
+            Say ''
+            Say "[待ち] リポジトリ $RepoName がまだありません。作成は人間の作業です（約40秒）:" 'Yellow'
+            Say "        https://github.com/new" 'Cyan'
+            Say "        Repository name = $RepoName ／ Public ／ README等は追加しない" 'Cyan'
+            Say "        作ったら、このスクリプトをもう一度実行してください（翌朝の自動実行でも可）。" 'Yellow'
+            if (-not $DomainReady) {
+                Say "        ⚠ 作成後、Settings→Pages はまだ開かないでください（独自ドメイン取得後に設定します）。" 'Yellow'
+                Say "          リポジトリを作って push しただけでは、ページは1枚も公開されません。" 'DarkGray'
+            }
+            exit 1
+        }
+    }
+    else {
+        # リポジトリは既にある。Pages 設定に使えるトークンがあるか確かめておく
+        # （セクション7で使う。ドメイン未確定なら結局そこで保留される）。
+        $stored = Get-StoredGitHubToken
+        if ($stored) {
+            $scopes = Get-GitHubTokenScopes $stored
+            if ($null -ne $scopes -and (@($scopes) -contains 'repo' -or @($scopes) -contains 'public_repo')) {
+                $ApiToken = $stored
+            }
+        }
     }
 }
 
@@ -282,18 +395,45 @@ if (-not $DomainReady) {
 }
 
 $PublicUrl = "https://$CustomDomain/"
-if ($HasToken) {
+if ($ApiToken) {
+    # $Headers はモードAでしか作られない。モードCでも動くようここで組み直す。
+    $PagesHeaders = @{ Authorization = "token $ApiToken"; 'User-Agent' = 'kurashi-keisan-setup'
+                       Accept = 'application/vnd.github+json' }
     $pagesBody = @{ source = @{ branch = 'main'; path = '/docs' } } | ConvertTo-Json
+    $pagesOk = $false
     try {
         Invoke-RestMethod -Uri "https://api.github.com/repos/$Login/$RepoName/pages" `
-            -Headers $Headers -Method Post -Body $pagesBody `
+            -Headers $PagesHeaders -Method Post -Body $pagesBody `
             -ContentType 'application/json' -ErrorAction Stop | Out-Null
         Say "[ok] GitHub Pages を有効化しました" 'Green'
+        $pagesOk = $true
     }
     catch {
-        # 409 = 既に有効。それ以外は手動で設定してもらう
-        Say "[info] Pages の自動有効化はできませんでした（既に有効な可能性）。" 'DarkGray'
-        Say "       確認: $RepoUrl/settings/pages" 'DarkGray'
+        # 409 = 既に有効。その場合も cname の設定は進めてよい。
+        if ($_.Exception.Response.StatusCode.value__ -eq 409) {
+            Say "[ok] GitHub Pages は既に有効です" 'Green'
+            $pagesOk = $true
+        }
+        else {
+            Say "[info] Pages の自動有効化はできませんでした: $($_.Exception.Message)" 'DarkGray'
+            Say "       確認: $RepoUrl/settings/pages" 'DarkGray'
+        }
+    }
+
+    if ($pagesOk) {
+        # カスタムドメインを明示的に設定する。docs/CNAME でも効くが、
+        # API で入れておくと Settings 側の表示と食い違わない。
+        try {
+            $cnameBody = @{ cname = $CustomDomain; source = @{ branch = 'main'; path = '/docs' } } | ConvertTo-Json
+            Invoke-RestMethod -Uri "https://api.github.com/repos/$Login/$RepoName/pages" `
+                -Headers $PagesHeaders -Method Put -Body $cnameBody `
+                -ContentType 'application/json' -ErrorAction Stop | Out-Null
+            Say "[ok] カスタムドメインを設定しました: $CustomDomain" 'Green'
+        }
+        catch {
+            Say "[info] カスタムドメインの API 設定は失敗しました（docs/CNAME でも適用されます）。" 'DarkGray'
+        }
+        Say "  残る人間の作業は DNS レコードの登録だけです（SETUP_HUMAN.md STEP 1-D）。" 'Cyan'
     }
 }
 else {

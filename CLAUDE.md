@@ -241,6 +241,39 @@ Google のスパムポリシー「大規模コンテンツ不正使用」は、
   `site.custom_domain` が未設定のうちは Pages を有効化しない（名前入りURLで
   先に公開してしまうのを防ぐため）
 
+### 保存済み資格情報は API にも使える（2026-08-09 実測）
+
+**`secrets/github_token.txt` が無くても GitHub API は叩ける。**
+Windows資格情報マネージャに保存されている GitHub のトークン（git が push に使うもの）は
+`gho_` 形式で、スコープは **`gist, repo, workflow`** だった。`repo` があるので
+**リポジトリ作成も Pages 有効化もできる。**
+
+- 取得は `scripts/connect_github.ps1` の `Get-StoredGitHubToken`
+- **トークンの値を表示・記録しない。** `daily_run.ps1` が出力を `logs/` に流すため、
+  1回でも出力すると平文で残り続ける。ログに出るのはスコープ名だけにしてある
+- ⚠ **Windows PowerShell 5.1 から `git credential fill` に stdin を渡すのは素直ではない。**
+  パイプ（CRLF が付く）も `ProcessStartInfo` の `StandardInput` 書き込みも
+  `refusing to work with credential missing protocol field` で失敗する。
+  **ASCII+LF の一時ファイルを `cmd` のリダイレクトで渡す方法だけが通った。**
+  一時ファイルに書くのは要求（protocol/host）だけで、秘密は書かない
+- 期限切れなどで API 認証が通らなければ、スクリプトは**人間の手順に戻る**。
+  黙って失敗させない
+
+**これによって人間の作業から外れたもの**: リポジトリ作成（STEP1-A）、
+Pages 有効化とカスタムドメイン設定（STEP1-C）。
+**残る人間専任作業**: ドメインの購入（金銭）、DNS登録（レジストラのアカウント）、
+Search Console とサービスアカウント（Googleアカウント）。
+
+#### 教訓 — 「できない」も確かめてから決める
+
+2026-08-06 の教訓は「**外部の資源は実在と空きを確認してから設計する**」だった。
+これはその裏返しで、**自分の能力の限界も確認せずに決めていた**という失敗である。
+「トークンファイルが無い＝APIは使えない」と決めつけ、4日間、人間に40秒の作業を
+依頼し続けていた。**確認は `git credential fill` 1回で済んだ。**
+
+人間キューに作業を積む前に、**それが本当に自分にできないことかを1回試す。**
+できない根拠を書けないなら、それはまだ試していないということである。
+
 ### push が拒否されたときの正しい手順（`--force` の代わり）
 
 **カスタムドメインを Settings→Pages で設定すると、GitHub が `CNAME` ファイルの
